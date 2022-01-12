@@ -269,6 +269,44 @@ void tbsla::cpp::MatrixDENSE::fill_cqmat(int n_row, int n_col, int c, double q, 
   }
 }
 
+void tbsla::cpp::MatrixDENSE::fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+  
+}
+
+void tbsla::cpp::MatrixDENSE::get_row_sums(double* s) {
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+	double sum = 0;
+    for (int j = 0; j < this->ln_col; j++) {
+      sum += this->values[i * this->ln_col + j];
+    }
+	s[i] = sum;
+  }
+}
+
+void tbsla::cpp::MatrixDENSE::normalize_rows(double* s) {
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = 0; j < this->ln_col; j++) {
+      this->values[i * this->ln_col + j] /= s[i];
+    }
+  }
+}
+
+void tbsla::cpp::MatrixDENSE::get_col_sums(double* s) {
+  
+}
+
+void tbsla::cpp::MatrixDENSE::normalize_cols(double* s) {
+
+}
+
 void tbsla::cpp::MatrixDENSE::NUMAinit() {
   double* newVal = new double[this->ln_row * this->ln_col];
 

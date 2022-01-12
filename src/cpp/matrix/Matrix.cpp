@@ -29,3 +29,10 @@ void tbsla::cpp::Matrix::AAxpAxpx(double* r, double* v, double* buffer, int vect
     r[i] += v[i];
   }
 }
+
+void tbsla::cpp::Matrix::make_stochastic(double* s) {
+	//this->get_row_sums(s);
+	//this->normalize_rows(s);
+	this->get_col_sums(s);
+	this->normalize_cols(s);
+}

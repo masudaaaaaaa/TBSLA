@@ -11,6 +11,7 @@ def init_parser():
 
 def init_pagerank():
   parser = argparse.ArgumentParser(add_help=False)
+  parser.add_argument("--op", dest="op", help="Operation", type=str, choices=['pagerank', 'page_rank'])
   parser.add_argument("--format", dest="format", help="Matrix format", type=str, required=True)
   parser.add_argument("--matrixtype", dest="matrixtype", help="Matrix used as input", type=str, required=True)
   parser.add_argument("--matrixfolder", dest="matrixfolder", help="Folder containing the matrices", type=str, default=".")
@@ -71,4 +72,12 @@ def add_c():
   parser.add_argument("--NC", dest="NC", help="Number of columns", type=int, required=True)
   parser.add_argument("--NR", dest="NR", help="Number of rows", type=int, required=True)
   parser.add_argument("--C", dest="C", help="Number of diagonals", type=int, default=10)
+  return parser
+
+def add_random_stoch():
+  parser = argparse.ArgumentParser(add_help=False)
+  parser.add_argument("--NC", dest="NC", help="Number of columns", type=int, required=True)
+  parser.add_argument("--NR", dest="NR", help="Number of rows", type=int, required=True)
+  parser.add_argument("--C", dest="C", help="Number of diagonals", type=int, default=10)
+  parser.add_argument("--NNZ", dest="NNZ", help="Non-zero ratio per row", type=float, default=0.0001)
   return parser

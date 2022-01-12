@@ -26,6 +26,12 @@ class MatrixDENSE : public virtual Matrix {
     void NUMAinit();
     void fill_cdiag(int n_row, int n_col, int cdiag, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
     void fill_cqmat(int n_row, int n_col, int c, double q, unsigned int seed_mult = 1, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
+	void fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult = 1, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
+	
+	void get_row_sums(double* buffer);
+	void normalize_rows(double* buffer);
+	void get_col_sums(double* buffer);
+	void normalize_cols(double* buffer);
 
   protected:
     double* values;

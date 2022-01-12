@@ -16,6 +16,8 @@ if args.lang != "OMP":
   parents.append(cap.add_gcgr())
 if args.matrixtype == "cqmat" or args.matrixtype == "cdiag":
   parents.append(cap.add_c())
+if args.matrixtype == "random_stoch":
+  parents.append(cap.add_random_stoch())
 if len(parents) > 0:
   parser2 = argparse.ArgumentParser(parents=parents)
   parser2.parse_args(rest, args)
@@ -26,7 +28,8 @@ ncores = machine.get_cores_per_node(args) * args.nodes
 
 dict_to_pass = vars(args)
 dict_to_pass["cores"] = ncores
-dict_to_pass["op"] = "pagerank"
+#dict_to_pass["op"] = "pagerank"
+dict_to_pass["op"] = "page_rank"
 
 command = f'python tools/run.py'
 for k in ['resfile',  'machine', 'timeout']:
@@ -69,6 +72,12 @@ else:
   if hasattr(machine, 'OUT_DICT_FILE_CASES') and args.lang in machine.OUT_DICT_FILE_CASES and hasattr(machine, 'OUT_DICT_FILE') and machine.OUT_DICT_FILE != None:
     header += f' --infile ' + machine.OUT_DICT_FILE + '.1.0'
   header += '\n\n'
+
+if args.matrixtype == "random_stoch":
+  command += f" --matrix-dim {args.NC}"
+  command += f" --NNZ {args.NNZ}"
+
+print(command)
 
 header += machine.post_processing(args) + "\n"
 fname = f"submit_page_rank_{args.lang}_n{args.nodes}_{args.matrixtype}_{args.format}"

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include <omp.h>
 
 #if TBSLA_ENABLE_VECTO
 #ifdef __ARM_FEATURE_SVE
@@ -464,7 +465,367 @@ void tbsla::cpp::MatrixELL::fill_cqmat(int n_row, int n_col, int c, double q, un
   }
 }
 
+/*void tbsla::cpp::MatrixELL::fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+  
+  if (this->values) {
+    delete[] this->values;
+    this->values = NULL;
+  }
+  if (this->columns) {
+    delete[] this->columns;
+    this->columns = NULL;
+  }
+
+  ln_row = tbsla::utils::range::lnv(n_row, pr, NR);
+  f_row = tbsla::utils::range::pflv(n_row, pr, NR);
+  ln_col = tbsla::utils::range::lnv(n_col, pc, NC);
+  f_col = tbsla::utils::range::pflv(n_col, pc, NC);
+  
+  int exp_nnz_per_row = (int)(ln_col*nnz_ratio);
+  int stdev = (int)(sqrt(sqrt(exp_nnz_per_row)));
+  std::default_random_engine generator(seed_mult);
+  std::normal_distribution<double> distribution(exp_nnz_per_row, stdev);
+  //std::uniform_real_distribution<double> distr_ind(f_col, f_col+ln_col);
+  // not actually used anymore ; rand() is simply used to generate column indexes
+  std::uniform_real_distribution<double> distr_ind(0, ln_col-1);
+  int* nnz_per_row = new int[ln_row];
+
+  this->nnz = 0;
+  this->max_col = 0;
+  for(long int i = f_row; i < f_row + ln_row; i++) {
+    int nnz_in_row = (int)(distribution(generator));
+    //if(ii >= f_row && ii < f_row + ln_row && jj >= f_col && jj < f_col + ln_col) {
+    this->nnz += nnz_in_row;
+	nnz_per_row[i-f_row] = nnz_in_row;
+	this->max_col = std::max(this->max_col, nnz_in_row);
+  }
+
+  if(this->nnz == 0)
+    return;
+
+  this->values = new double[this->ln_row * this->max_col]();
+  this->columns = new int[this->ln_row * this->max_col]();
+
+  size_t incr = 0;
+  for(long int i = f_row; i < f_row + ln_row; i++) {
+	//std::cout << "Generating " << nnz_per_row[i-f_row] << " values in range " << this->ln_col << std::endl;
+    int* random_cols = tbsla::utils::values_generation::random_columns(nnz_per_row[i-f_row], this->ln_col, distr_ind, generator);
+	for(int k=0; k<nnz_per_row[i-f_row]; k++) {
+		this->columns[incr] = random_cols[k]+f_col;
+		this->values[incr] = 1;
+		incr++;
+	}
+	for(int k=nnz_per_row[i-f_row]; k<this->max_col; k++) {
+		this->columns[incr] = 0;
+		this->values[incr] = 0;
+		incr++;
+	}
+  }
+}*/
+
+/*void tbsla::cpp::MatrixELL::fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+
+  this->ln_row = tbsla::utils::range::lnv(n_row, pr, NR);
+  this->f_row = tbsla::utils::range::pflv(n_row, pr, NR);
+  this->ln_col = tbsla::utils::range::lnv(n_col, pc, NC);
+  this->f_col = tbsla::utils::range::pflv(n_col, pc, NC);
+
+  int c = std::max(1, (int)(n_col * nnz_ratio));
+  if (nnz_ratio > 1)
+    c = (int)nnz_ratio;
+
+  //int min_ = std::min(n_col - std::min(c, n_col) + 1, n_row);
+
+  std::cout << "ELL-MPI : " << ln_row << " " << f_row << " " << ln_col << " " << f_col << std::endl;
+  std::cout << "nnz ratio = " << nnz_ratio << std::endl;
+  std::cout << "c = " << c << std::endl;
+
+  long int incr = 0, nv = 0;
+  for(long int i = 0; i < n_row; i++) {
+    if(i < f_row) {
+      incr += std::min(c, n_col);
+    }
+    if(i >= f_row && i < f_row + ln_row) {
+      nv += std::min(c, n_col);
+    }
+    if(i >= f_row + ln_row) {
+      break;
+    }
+  }
+
+  this->nnz = 0;
+  this->max_col = 0;
+  long int incr_save = incr;
+
+  long int i;
+  for(i = f_row; i < std::min(n_row, f_row + ln_row); i++) {
+    int* random_cols = tbsla::utils::values_generation::random_columns(incr, std::min(c, n_col), n_col, seed_mult);
+    int nbc = 0;
+    for(long int j = 0; j < std::min(c, n_col); j++) {
+      int ii, jj;
+      ii = i;
+      jj = random_cols[j];
+      if(ii >= f_row && ii < f_row + ln_row && jj >= f_col && jj < f_col + ln_col) {
+        this->nnz++;
+        nbc++;
+      }
+      incr++;
+    }
+    delete[] random_cols;
+    this->max_col = std::max(this->max_col, nbc);
+  }
+  std::cout << "max_col = " << this->max_col << std::endl;
+
+  if(nv == 0)
+    return;
+
+  if (this->values)
+    delete[] this->values;
+  if (this->columns)
+    delete[] this->columns;
+  this->values = new double[this->ln_row * this->max_col]();
+  this->columns = new int[this->ln_row * this->max_col]();
+
+  incr = incr_save;
+  long int lincr;
+  for(i = f_row; i < std::min(n_row, f_row + ln_row); i++) {
+    int* random_cols = tbsla::utils::values_generation::random_columns(incr, std::min(c, n_col), n_col, seed_mult);
+    lincr = 0;
+    for(long int j = 0; j < std::min(c, n_col); j++) {
+      int ii, jj;
+      ii = i;
+      jj = random_cols[j];
+      if(ii >= f_row && ii < f_row + ln_row && jj >= f_col && jj < f_col + ln_col) {
+        this->columns[(i - f_row) * this->max_col + lincr] = jj;
+        this->values[(i - f_row) * this->max_col + lincr] = 1;
+        lincr++;
+      }
+      incr++;
+    }
+    delete[] random_cols;
+    for(long int j = lincr; j < max_col; j++) {
+      this->columns[(i - f_row) * this->max_col + j] = 0;
+      this->values[(i - f_row) * this->max_col + j] = 0;
+    }
+  }
+  
+}*/
+
+void tbsla::cpp::MatrixELL::fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+
+  this->ln_row = tbsla::utils::range::lnv(n_row, pr, NR);
+  this->f_row = tbsla::utils::range::pflv(n_row, pr, NR);
+  this->ln_col = tbsla::utils::range::lnv(n_col, pc, NC);
+  this->f_col = tbsla::utils::range::pflv(n_col, pc, NC);
+
+  int c = std::max(1, (int)(n_col * nnz_ratio));
+  if (nnz_ratio > 1)
+    c = (int)nnz_ratio;
+
+  //int min_ = std::min(n_col - std::min(c, n_col) + 1, n_row);
+
+  std::cout << "ELL-MPI : " << ln_row << " " << f_row << " " << ln_col << " " << f_col << std::endl;
+  std::cout << "nnz ratio = " << nnz_ratio << std::endl;
+  std::cout << "c = " << c << std::endl;
+
+  long int incr = 0;
+
+  for(long int i = 0; i < n_row; i++) {
+    if(i < f_row) {
+      incr += std::min(c, n_col);
+    }
+    else {
+      break;
+    }
+  }
+  std::cout << "incr = " << incr << std::endl;
+
+  this->nnz = 0;
+  long int incr_save = incr;
+  int n_threads = 1;
+  #pragma omp parallel
+  {
+    n_threads = omp_get_num_threads();
+  }
+  std::vector<std::vector<std::vector<int> > > col_inds_t(n_threads);
+  std::vector<int> max_col_t(n_threads);
+  std::vector<int> nnz_t(n_threads);
+
+  int upper_bound = std::min(n_row, f_row + ln_row);
+
+  std::cout << "one" << std::endl;
+#pragma omp parallel
+  {
+  int t_n = omp_get_thread_num();
+  int chunk_size = std::floor((upper_bound-f_row) / n_threads);
+  int start = f_row + (t_n * chunk_size);
+  int end = std::min((start+chunk_size), upper_bound);
+  if(t_n == n_threads-1)
+    end = upper_bound;
+  int incr_part = incr + (t_n * chunk_size * std::min(c, n_col));
+  std::vector<std::vector<int> > col_inds_part;
+  int max_col_part = 0;
+  int nnz_part = 0;
+  long int i;
+  for(i = start; i < end; i++) {
+    int* random_cols = tbsla::utils::values_generation::random_columns(incr_part, std::min(c, n_col), n_col, seed_mult);
+    std::vector<int> col_inds_inner;
+    for(long int j = 0; j < std::min(c, n_col); j++) {
+      int ii, jj;
+      double v;
+      ii = i;
+      jj = random_cols[j];
+      v = 1;
+      if(ii >= f_row && ii < f_row + ln_row && jj >= f_col && jj < f_col + ln_col) {
+        col_inds_inner.push_back(jj);
+        nnz_part++;
+      }
+      incr_part++;
+    }
+    col_inds_part.push_back(col_inds_inner);
+    if(col_inds_inner.size() > max_col_part)
+      max_col_part = col_inds_inner.size();
+    delete[] random_cols;
+  }
+  col_inds_t[t_n] = col_inds_part;
+  max_col_t[t_n] = max_col_part;
+  nnz_t[t_n] = nnz_part;
+  std::cout << "finished thread " << t_n << std::endl;
+  }
+  this->max_col = 0;
+  for(int it=0; it<n_threads; it++) {
+    //this->nnz += col_inds_t[it].size();
+    this->nnz += nnz_t[it];
+    if(max_col_t[it] > this->max_col)
+      this->max_col = max_col_t[it];
+  }
+
+  std::cout << "nnz = " << this->nnz << std::endl;
+  std::cout << "max_col = " << this->max_col << std::endl;
+
+  std::cout << "init..." << std::endl;
+  if (this->values)
+    delete[] this->values;
+  if (this->columns)
+    delete[] this->columns;
+  int arr_size = this->ln_row * this->max_col;
+  this->values = new double[arr_size]();
+  this->columns = new int[arr_size]();
+  std::cout << "=> array size = " << arr_size << std::endl;
+  std::vector<int> updated_t(n_threads);
+  #pragma omp parallel for schedule(static)
+  for(int it=0; it<n_threads; it++) {
+    int t_n = omp_get_thread_num();
+    int chunk_size = std::floor((upper_bound-f_row) / n_threads);
+    int start = (t_n * chunk_size) * this->max_col;
+    int pos = 0;
+    for(int itt=0; itt<col_inds_t[it].size(); itt++) {
+      for(int ittt=0; ittt<col_inds_t[it][itt].size(); ittt++) {
+        if((start+pos)>arr_size)
+          std::cout << "oob : " << (start+pos) << std::endl;
+        this->columns[start+pos] = col_inds_t[it][itt][ittt];
+        this->values[start+pos] = 1;
+        pos++;
+      }
+      for(int ittt=col_inds_t[it][itt].size(); ittt<this->max_col; ittt++) {
+        if((start+pos)>arr_size)
+          std::cout << "oob : " << (start+pos) << std::endl;
+        this->columns[start+pos] = 0;
+        this->values[start+pos] = 0;
+        pos++;
+      }
+    }
+    updated_t[it] = pos;
+  }
+  int updated_total = 0;
+  for(int it=0; it<n_threads; it++) {
+    //std::cout << "thread " << it << " : " << updated_t[it] << " nnz" << std::endl;
+    updated_total += updated_t[it];
+  }
+  std::cout << "total nnz updated = " << updated_total;
+
+  std::cout << "Done" << std::endl;
+  std::cout << " ; incr = " << incr << std::endl;
+  updated_t.resize(0);
+  col_inds_t.resize(0);
+}
+
+
+void tbsla::cpp::MatrixELL::get_row_sums(double* s) {
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+	double sum = 0;
+    for (int j = 0; j < this->max_col; j++) {
+      sum += this->values[i * this->max_col + j];
+    }
+	s[i+this->f_row] = sum;
+  }
+}
+
+void tbsla::cpp::MatrixELL::normalize_rows(double* s) {
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = 0; j < this->max_col; j++) {
+      this->values[i * this->max_col + j] /= s[i+this->f_row];
+    }
+  }
+}
+
+void tbsla::cpp::MatrixELL::get_col_sums(double* s) {
+  std::cout << "Computing col-sums on cols " << this->f_col << " to " << this->f_col+this->ln_col << std::endl;
+  if(this->nnz==0) {
+    std::cout << "Nothing to do ; block matrix is empty" << std::endl;
+    return;
+  }
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = 0; j < this->max_col; j++) {
+      double val = this->values[i * this->max_col + j];
+      if(val>0)
+        s[this->columns[i * this->max_col + j] - this->f_col] += val;
+    }
+  }
+}
+
+void tbsla::cpp::MatrixELL::normalize_cols(double* s) {
+  std::cout << "Normalizing on cols " << this->f_col << " to " << this->f_col+this->ln_col << std::endl;
+  if(this->nnz==0) {
+    std::cout << "Nothing to do ; block matrix is empty" << std::endl;
+    return;
+  }
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = 0; j < this->max_col; j++) {
+       //this->values[i * this->max_col + j] /= s[this->columns[i * this->max_col + j]];
+      double val = this->values[i * this->max_col + j];
+      double sval = s[this->columns[i * this->max_col + j] - this->f_col];
+      if(val>0 && sval>0)
+        this->values[i * this->max_col + j] /= sval;
+    }
+  }
+}
+
 void tbsla::cpp::MatrixELL::NUMAinit() {
+  if(this->nnz==0) {
+    std::cout << "Nothing to do ; block matrix is empty" << std::endl;
+    return;
+  }
   double* newVal = new double[this->ln_row * this->max_col];
   int* newCol = new int[this->ln_row * this->max_col];
 
