@@ -221,4 +221,29 @@ int* tbsla::utils::values_generation::random_columns(std::size_t i, std::size_t 
 }
 
 
+std::vector<int> tbsla::utils::values_generation::brain_columns(std::size_t i, std::vector<std::vector<double> > proba_conn, std::vector<std::unordered_map<int,std::vector<int> > > brain_struct, int dest_bpart, unsigned seed_mult) {
+  std::vector<int> cols;
+  unsigned int seedp = i;
+  if(seed_mult > 0) {
+    seedp = seed_mult * i;
+  }
+  int n_parts = brain_struct.size();
+  for(int ibp=0; ibp<brain_struct.size(); ibp++) {
+    std::unordered_map<int,std::vector<int> >::iterator it;
+    for(it=brain_struct[ibp].begin(); it!=brain_struct[ibp].end(); it++) {
+      int source_n_type = it->first;
+      std::vector<int> coords = it->second;
+      int source_n_ind_start = coords[0], source_n_number = coords[1];
+      //double proba = proba_conn[ibp][source_n_type*n_parts + dest_bpart];
+      //int n_conns = (int)((double)source_n_number * proba);
+      int n_conns = (int)(proba_conn[ibp][source_n_type*n_parts + dest_bpart]);
+      int* rand_cols = tbsla::utils::values_generation::random_columns(i, n_conns, source_n_number, seed_mult);
+      for(int ic=0; ic<n_conns; ic++)
+        cols.push_back(rand_cols[ic] + source_n_ind_start);
+    }
+  }
+  return cols;
+}
+
+
 

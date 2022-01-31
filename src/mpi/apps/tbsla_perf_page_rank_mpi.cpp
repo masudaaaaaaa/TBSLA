@@ -151,6 +151,56 @@ double compute_gflops_pagerank(double runtime, int n, int nnz, int n_iters) {
   return gfl;
 }
 
+
+void generate_brain_structs(int n, int nnz, std::vector<std::vector<double> > &proba_conn, std::vector<std::unordered_map<int,std::vector<int> > > &brain_struct, int* neuron_type) {
+  std::cout << "n = " << n << std::endl;
+  // Dummy example w/ 2 parts and 2 neuron types
+  std::vector<double> pc_one, pc_two;
+  /*pc_one.push_back(0.0001); pc_one.push_back(0.0004);
+  pc_one.push_back(0.0003); pc_one.push_back(0.00005);
+  pc_two.push_back(0.0007); pc_two.push_back(0.0001);
+  pc_two.push_back(0.0004); pc_two.push_back(0.00002);*/
+  pc_one.push_back(1*nnz); pc_one.push_back(4*nnz);
+  pc_one.push_back(3*nnz); pc_one.push_back(0.5);
+  pc_two.push_back(7*nnz); pc_two.push_back(1*nnz);
+  pc_two.push_back(4*nnz); pc_two.push_back(0.2*nnz);
+  proba_conn.push_back(pc_one); proba_conn.push_back(pc_two);
+  std::unordered_map<int,std::vector<int> > map_one, map_two;
+  std::vector<int> v_one_one, v_one_two, v_two_one, v_two_two;
+  double ratio_parts = 0.3;
+  double split_one = 0.4, split_two = 0.8;
+  int n_part_one = (int)(n*ratio_parts); int n_part_two = n-n_part_one;
+  int n_one_one = (int)(n_part_one*split_one); int n_one_two = n_part_one-n_one_one;
+  v_one_one.push_back(0); v_one_one.push_back(n_one_one);
+  v_one_two.push_back(n_one_one); v_one_two.push_back(n_one_two);
+  std::cout << "v_1_1 : " << v_one_one[0] << " , " << v_one_one[1] << std::endl;
+  std::cout << "v_1_2 : " << v_one_two[0] << " , " << v_one_two[1] << std::endl;
+
+  int n_two_one = (int)(n_part_two*split_two); int n_two_two = n_part_two-n_two_one;
+  v_two_one.push_back(n_part_one+0); v_two_one.push_back(n_two_one);
+  v_two_two.push_back(n_part_one+n_two_one); v_two_two.push_back(n_two_two);
+  std::cout << "v_2_1 : " << v_two_one[0] << " , " << v_two_one[1] << std::endl;
+  std::cout << "v_2_2 : " << v_two_two[0] << " , " << v_two_two[1] << std::endl;
+
+  map_one[0] = v_one_one; map_one[1] = v_one_two;
+  map_two[0] = v_two_one; map_two[1] = v_two_two;
+  brain_struct.push_back(map_one); brain_struct.push_back(map_two);
+
+  std::cout << "n_type 0 from " << brain_struct[0][0][0] << " to " << brain_struct[0][0][0]+brain_struct[0][0][1] << std::endl;
+  for(int k=brain_struct[0][0][0]; k<brain_struct[0][0][0]+brain_struct[0][0][1]; k++)
+    neuron_type[k] = 0;
+  std::cout << "n_type 1 from " << brain_struct[0][1][0] << " to " << brain_struct[0][1][0]+brain_struct[0][1][1] << std::endl;
+  for(int k=brain_struct[0][1][0]; k<brain_struct[0][1][0]+brain_struct[0][1][1]; k++)
+    neuron_type[k] = 1;
+  std::cout << "n_type 0 from " << brain_struct[1][0][0] << " to " << brain_struct[1][0][0]+brain_struct[1][0][1] << std::endl;
+  for(int k=brain_struct[1][0][0]; k<brain_struct[1][0][0]+brain_struct[1][0][1]; k++)
+    neuron_type[k] = 0;
+  std::cout << "n_type 1 from " << brain_struct[1][1][0] << " to " << brain_struct[1][1][0]+brain_struct[1][1][1] << std::endl;
+  for(int k=brain_struct[1][1][0]; k<brain_struct[1][1][0]+brain_struct[1][1][1]; k++)
+    neuron_type[k] = 1;
+}
+
+
 int main(int argc, char** argv) {
   InputParser input(argc, argv);
   MPI_Init(&argc, &argv);
@@ -203,6 +253,9 @@ int main(int argc, char** argv) {
     S = std::stoi(s_string);
   } else if(matrix == "random_stoch") {
     std::string nnz_string = input.get_opt("--NNZ", "0.0001");
+    NNZ = std::stod(nnz_string);
+  } else if(matrix == "brain") {
+    std::string nnz_string = input.get_opt("--NNZ", "10");
     NNZ = std::stod(nnz_string);
   } else if (matrix == "") {
     if(rank == 0) {
@@ -276,6 +329,36 @@ int main(int argc, char** argv) {
     for(int i = 0; i < m->get_ln_col(); i++) {
       s[i] = 0;
       b1[i] = 0;
+    } 
+    auto t_three = now();
+    std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_four = now();
+    std::cout << "Normalized matrix" << std::endl;
+    delete[] s;
+    delete[] b1;
+    delete[] b2;
+    std::cout << "Matrix generation complete" << std::endl;
+    std::cout << "Time random filling = " << std::to_string((t_two-t_one) / 1e9) << std::endl;
+    std::cout << "Time normalization = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
+    } else if(matrix == "brain") {
+    std::cout << "Init brain structure..." << std::endl;
+    std::vector<std::vector<double> > proba_conn;
+    std::vector<std::unordered_map<int,std::vector<int> > > brain_struct;
+    int* neuron_type = new int[matrix_dim]();
+    generate_brain_structs(matrix_dim, NNZ, proba_conn, brain_struct, neuron_type);
+    std::cout << "...done" << std::endl;
+    auto t_one = now();
+    m->fill_brain(matrix_dim, matrix_dim, neuron_type, proba_conn, brain_struct, S, rank / GC, rank % GC, GR, GC);
+    auto t_two = now();
+    double* s = new double[m->get_ln_col()];
+    double* b1 = new double[m->get_ln_col()];
+    double* b2 = new double[1];
+    for(int i = 0; i < m->get_ln_col(); i++) {
+      s[i] = 0;
+      b1[i] = 0;
     }
     auto t_three = now();
     std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
@@ -287,6 +370,7 @@ int main(int argc, char** argv) {
     delete[] s;
     delete[] b1;
     delete[] b2;
+    delete[] neuron_type;
     std::cout << "Matrix generation complete" << std::endl;
     std::cout << "Time random filling = " << std::to_string((t_two-t_one) / 1e9) << std::endl;
     std::cout << "Time normalization = " << std::to_string((t_four-t_three) / 1e9) << std::endl;

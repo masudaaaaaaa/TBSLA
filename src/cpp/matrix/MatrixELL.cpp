@@ -769,6 +769,17 @@ void tbsla::cpp::MatrixELL::fill_random(int n_row, int n_col, double nnz_ratio, 
 }
 
 
+void tbsla::cpp::MatrixELL::fill_brain(int n_row, int n_col, int* neuron_type, std::vector<std::vector<double> > proba_conn, std::vector<std::unordered_map<int,std::vector<int> > > brain_struct, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+
+}
+
+
 void tbsla::cpp::MatrixELL::get_row_sums(double* s) {
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < this->ln_row; i++) {

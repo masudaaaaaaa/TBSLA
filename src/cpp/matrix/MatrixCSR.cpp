@@ -1004,6 +1004,145 @@ void tbsla::cpp::MatrixCSR::fill_random(int n_row, int n_col, double nnz_ratio, 
 }
 
 
+void tbsla::cpp::MatrixCSR::fill_brain(int n_row, int n_col, int* neuron_type, std::vector<std::vector<double> > proba_conn, std::vector<std::unordered_map<int,std::vector<int> > > brain_struct, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+
+  if (this->values)
+    delete[] this->values;
+  if (this->rowptr)
+    delete[] this->rowptr;
+  if (this->colidx)
+    delete[] this->colidx;
+
+  ln_row = tbsla::utils::range::lnv(n_row, pr, NR);
+  f_row = tbsla::utils::range::pflv(n_row, pr, NR);
+  ln_col = tbsla::utils::range::lnv(n_col, pc, NC);
+  f_col = tbsla::utils::range::pflv(n_col, pc, NC);
+
+  std::cout << "CSR-MPI : " << ln_row << " " << f_row << " " << ln_col << " " << f_col << std::endl;
+
+  // arbitrary value for RNG (experimental)
+  int c = std::max(10, (int)(n_col / 100000));
+  //int c = std::max(1, );
+
+  long int incr = 0;
+
+  for(long int i = 0; i < n_row; i++) {
+    if(i < f_row) {
+      incr += std::min(c, n_col);
+    }
+    else {
+      break;
+    }
+  }
+  std::cout << "incr = " << incr << std::endl;
+
+  this->nnz = 0;
+  long int incr_save = incr;
+  int n_threads = 1;
+  #pragma omp parallel
+  {
+    n_threads = omp_get_num_threads();
+  }
+  std::vector<std::vector<int> > row_ptrs_t(n_threads);
+  std::vector<std::vector<int> > col_inds_t(n_threads);
+
+  int upper_bound = std::min(n_row, f_row + ln_row);
+
+  std::cout << "one" << std::endl;
+#pragma omp parallel
+  {
+  int t_n = omp_get_thread_num();
+  int chunk_size = std::floor((upper_bound-f_row) / n_threads);
+  int start = f_row + (t_n * chunk_size);
+  int end = std::min((start+chunk_size), upper_bound);
+  if(t_n == n_threads-1)
+    end = upper_bound;
+  long int incr_part = incr + (t_n * chunk_size * std::min(c, n_col));
+  int lincr_part = 0;
+  std::vector<int> row_ptrs_part;
+  std::vector<int> col_inds_part;
+  row_ptrs_part.push_back(0);
+  long int i;
+  //std::cout << "thread " << t_n << " from " << start << " to " << end << std::endl;
+  for(i = start; i < end; i++) {
+    std::vector<int> random_cols = tbsla::utils::values_generation::brain_columns(incr_part, proba_conn, brain_struct, neuron_type[i], seed_mult);
+    for(long int j = 0; j < random_cols.size(); j++) {
+      int ii, jj;
+      ii = i;
+      jj = random_cols[j];
+      if(ii >= f_row && ii < f_row + ln_row && jj >= f_col && jj < f_col + ln_col) {
+        col_inds_part.push_back(jj);
+        lincr_part++;
+      }
+      incr_part++;
+    }
+    row_ptrs_part.push_back(lincr_part);
+  }
+  row_ptrs_t[t_n] = row_ptrs_part;
+  col_inds_t[t_n] = col_inds_part;
+  std::cout << "finished thread " << t_n << std::endl;
+  }
+  std::cout << "aggregating..." << std::endl;
+  std::vector<int> row_ptrs_full;
+  int cumul = 0;
+  for(int it=0; it<n_threads; it++) {
+    //std::cout << "row_ptrs_t[" << it << "] : # = " << row_ptrs_t[it].size() << std::endl;
+    for(int itt=0; itt<row_ptrs_t[it].size()-1; itt++) {
+      row_ptrs_full.push_back(row_ptrs_t[it][itt]+cumul);
+    }
+    //std::cout << "cumul = " << cumul << " + " << row_ptrs_t[it][row_ptrs_t[it].size()-1] << std::endl;
+    cumul += row_ptrs_t[it][row_ptrs_t[it].size()-1];
+    //std::cout << "=> cumul = " << cumul  << std::endl;
+    row_ptrs_t[it].clear();
+  }
+  row_ptrs_full.push_back(cumul);
+  row_ptrs_t.resize(0);
+
+  std::cout << "row_ptrs_full.size() = " << row_ptrs_full.size() << std::endl;
+  std::cout << "nnz = " << cumul << std::endl;
+
+  this->nnz = cumul;
+
+  std::cout << "init..." << std::endl;
+  this->rowptr = new int[ln_row + 1]();
+  //this->rowptr = &row_ptrs_full[0];
+  for(int k=0; k<row_ptrs_full.size(); k++)
+    this->rowptr[k] = row_ptrs_full[k];
+
+  this->values = new double[this->nnz]();
+  this->colidx = new int[this->nnz]();
+  std::vector<int> offsets;
+  offsets.push_back(0);
+  for(int it=1; it<n_threads; it++) {
+    int no = offsets[it-1] + col_inds_t[it-1].size();
+    offsets.push_back(no);
+    //std::cout << "offsets[" << it << "] = " << no << std::endl;
+  }
+  //std::cout << "last col_inds_t = " << col_inds_t[n_threads-1].size() << std::endl;
+  std::cout << "=> total nnz = " << (col_inds_t[n_threads-1].size() + offsets[n_threads-1]) << std::endl;
+  #pragma omp parallel for schedule(static)
+  for(int it=0; it<n_threads; it++) {
+    int of = offsets[it];
+    //std::cout << it << " => adding " << col_inds_t[it].size() << " nnzs starting at position " << of << std::endl;
+    for(int itt=0; itt<col_inds_t[it].size(); itt++) {
+      this->colidx[of+itt] = col_inds_t[it][itt];
+      this->values[of+itt] = 1;
+    }
+  }
+  col_inds_t.resize(0);
+  offsets.resize(0);
+
+  std::cout << "Done" << std::endl;
+  std::cout << " ; incr = " << incr << std::endl;
+}
+
+
 void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
   std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row+this->ln_row << std::endl;
   #pragma omp parallel for schedule(static)

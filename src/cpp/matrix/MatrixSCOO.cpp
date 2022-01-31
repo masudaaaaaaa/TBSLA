@@ -685,6 +685,18 @@ void tbsla::cpp::MatrixSCOO::fill_random(int n_row, int n_col, double nnz_ratio,
   updated_t.resize(0);
 }
 
+
+void tbsla::cpp::MatrixSCOO::fill_brain(int n_row, int n_col, int* neuron_type, std::vector<std::vector<double> > proba_conn, std::vector<std::unordered_map<int,std::vector<int> > > brain_struct, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+
+}
+
+
 // TODO : normalization for SCOO
 void tbsla::cpp::MatrixSCOO::get_row_sums(double* s) {
   for(int k=0; k<this->nnz; k++) {
