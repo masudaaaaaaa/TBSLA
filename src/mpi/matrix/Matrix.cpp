@@ -599,3 +599,190 @@ double* tbsla::mpi::Matrix::page_rank(MPI_Comm comm, double beta, double epsilon
 }
 
 
+double abs_two_vector_error(double *vect1, double *vect2, int size)
+{
+    /*Calculate the error (norm) between two vectors of size "size"*/
+    double sum=0;
+    for (int i=0;i<size;i++)
+    {sum += std::abs(vect1[i] - vect2[i]);}
+    return sum;
+}
+
+/*
+Variables used in PageRank and what they correspond to :
+(See help PDF for more info)
+
+    int indl; //Indice de ligne du block
+    int indc; //Indice de colonne du block
+    long dim_l; //nombre de lignes dans le block
+    long dim_c; //nombre de colonnes dans le block
+    long startRow; //Indice de départ en ligne (inclu)
+    long startColumn; //Indice de départ en colonne (inclu)
+    long endRow; //Indice de fin en ligne (inclu)
+    long endColumn; //Indice de fin en colonne (inclu)
+
+    int pr_result_redistribution_root; //Indice de colonne du block "root" (source) de la communication-redistribution du vecteur résultat
+    int result_vector_calculation_group; //Indice de groupe de calcul du vecteur résultat
+    long local_result_vector_size; //Taille locale du vecteur résultat du PageRank, en nombre d'éléments
+    int indl_in_result_vector_calculation_group; //Indice de ligne du block dans le groupe de calcul du vecteur résultat
+    int indc_in_result_vector_calculation_group; //Indice de colonne du block dans le groupe de calcul du vecteur résultat
+    int inter_result_vector_need_group_communicaton_group; //Indice du Groupe de communication inter-groupe de besoin (utile pour récupérer le résultat final)
+    long startColumn_in_result_vector_calculation_group; //Indice de départ en colonne dans le groupe de calcul du vecteur résultat (inclu)
+    long startRow_in_result_vector_calculation_group; //Indice de départ en ligne dans le groupe de calcul du vecteur résultat (inclu), utile dans le PageRank pour aller chercher des valeurs dans le vecteur q
+    int my_result_vector_calculation_group_rank; //my_rank dans le groupe de calcul du vecteur résultat
+*/
+
+
+// Alternative version optimizing the communications for Torus node allocation method (on Fugaku)
+// TODO : fix/debug
+double * tbsla::mpi::Matrix::page_rank_opticom(int maxIter, double beta, double epsilon, int &nb_iterations_done)
+{
+    //std::cout << "[PageRank] Entering PageRank" << std::endl;
+    int my_mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_mpi_rank);
+
+    /*---- Filling local MatrixBlock data ----*/
+    //std::cout << "[PageRank] Filling data for local Matrix Block" << std::endl;
+    int indl, indc, pr_result_redistribution_root, result_vector_calculation_group, indl_in_result_vector_calculation_group, indc_in_result_vector_calculation_group, inter_result_vector_need_group_communicaton_group, my_result_vector_calculation_group_rank;
+    long dim_l, dim_c, startRow, startColumn, endRow, endColumn, local_result_vector_size, startColumn_in_result_vector_calculation_group, startRow_in_result_vector_calculation_group;
+
+    int pgcd_nbr_nbc, local_result_vector_size_row_blocks, local_result_vector_size_column_blocks;
+    double grid_dim_factor;
+
+    int tmp_r = this->NR, tmp_c = this->NC;
+    while (tmp_c!=0) {pgcd_nbr_nbc = tmp_r % tmp_c; tmp_r = tmp_c; tmp_c = pgcd_nbr_nbc;}
+    pgcd_nbr_nbc = tmp_r;
+
+    /*this->NR = nb_blocks_row, this->NC = nb_blocks_column; this->n_row = n (dimension globale)*/
+    indl = my_mpi_rank / this->NC; //indice de ligne dans la grille 2D de processus
+    indc = my_mpi_rank % this->NC; //indice de colonne dans la grille 2D de processus
+    dim_l = this->n_row/this->NR; //nombre de lignes dans un block
+    dim_c = this->n_row/this->NC; //nombre de colonnes dans un block
+    startRow = indl*dim_l;
+    endRow = (indl+1)*dim_l -1;
+    startColumn = indc*dim_c;
+    endColumn = (indc+1)*dim_c -1;
+    grid_dim_factor = (double) this->NC / (double) this->NR;
+    pr_result_redistribution_root = (int) indc / grid_dim_factor;
+    local_result_vector_size_column_blocks = this->NC / pgcd_nbr_nbc;
+    local_result_vector_size_row_blocks = this->NR / pgcd_nbr_nbc;
+    local_result_vector_size = local_result_vector_size_row_blocks * dim_l;
+    result_vector_calculation_group = indl / local_result_vector_size_row_blocks;
+    indl_in_result_vector_calculation_group = indl % local_result_vector_size_row_blocks;
+    indc_in_result_vector_calculation_group = indc;
+    inter_result_vector_need_group_communicaton_group = (indc % local_result_vector_size_column_blocks) * this->NR + indl;
+    startColumn_in_result_vector_calculation_group = dim_c * (indc % local_result_vector_size_column_blocks);
+    startRow_in_result_vector_calculation_group = dim_l * indl_in_result_vector_calculation_group;
+    my_result_vector_calculation_group_rank = indl_in_result_vector_calculation_group * local_result_vector_size_row_blocks + indc;
+    /*---- Filled MatrixBlock data ----*/
+
+    double start_pagerank_time, total_pagerank_time;
+    
+    //std::cout << "[PageRank] Splitting Communicators" << std::endl;
+    /* Row and Column MPI communicators */
+    MPI_Comm ROW_COMM;
+    MPI_Comm_split(MPI_COMM_WORLD, indl, indc, &ROW_COMM);
+
+    MPI_Comm COLUMN_COMM;
+    MPI_Comm_split(MPI_COMM_WORLD, indc, indl, &COLUMN_COMM);
+
+    /* Calculation group and Need group communicators */
+    MPI_Comm RV_CALC_GROUP_COMM; //communicateur interne des groupes (qui regroupe sur les colonnes les blocks du même groupe de calcul)
+    MPI_Comm_split(MPI_COMM_WORLD, result_vector_calculation_group, my_result_vector_calculation_group_rank, &RV_CALC_GROUP_COMM);
+
+    MPI_Comm INTER_RV_NEED_GROUP_COMM; //communicateur externe des groupes de besoin (groupes sur les lignes) ; permet de calculer l'erreur et la somme totale du vecteur
+    MPI_Comm_split(MPI_COMM_WORLD, inter_result_vector_need_group_communicaton_group, my_mpi_rank, &INTER_RV_NEED_GROUP_COMM);
+
+    long i,j; //loops
+    long cpt_iterations;
+    double error_vect,error_vect_local;
+    double *morceau_new_q, *morceau_new_q_local, *morceau_old_q,*tmp;
+    double to_add,sum_totale_old_q,sum_totale_new_q,sum_new_q,tmp_sum;
+
+    //init variables PageRank
+    cpt_iterations = 0; error_vect=10000;//INFINITY;
+
+    //memory allocation for old_q and new_q, and new_q initialization
+    //std::cout << "[PageRank] Memory allocation for 3 vectors of size " << local_result_vector_size << std::endl;
+    morceau_new_q = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_new_q_local = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_old_q = (double *)malloc(local_result_vector_size * sizeof(double));
+    for (i=0;i<local_result_vector_size;i++) {morceau_new_q[i] = (double) 1/this->n_row/*this.[dimension globale]*/;}
+    sum_totale_new_q = 1/*pas this->n_row = this.[dimension globale]*/;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    //start_pagerank_time = my_gettimeofday(); //Start of time measurement for PageRank
+
+    /****************************************************************************************************/
+    /****************************************** PAGERANK START ******************************************/
+    /****************************************************************************************************/
+    while (error_vect > epsilon /*&& !one_in_vector(morceau_new_q,local_result_vector_size)*/ && cpt_iterations<maxIter)
+    {
+        /************ Preparation for iteration ************/
+        //old_q <=> new_q  &   sum_totale_old_q <=> sum_totale_new_q
+        tmp = morceau_new_q;
+        morceau_new_q = morceau_old_q;
+        morceau_old_q = tmp;
+        tmp_sum = sum_totale_new_q;
+        sum_totale_new_q = sum_totale_old_q;
+        sum_totale_old_q = tmp_sum;
+        //iterations are done on new_q
+
+        //reset morceau_new_q_local for new iteration
+        for (i=0; i<local_result_vector_size; i++)
+        {
+            morceau_new_q_local[i] = 0;
+        }
+
+        /************ Matrix-vector product ************/
+        this->Ax(&(morceau_new_q_local[startRow_in_result_vector_calculation_group]), morceau_old_q, 0);
+        //this->Ax_Local_nico(morceau_new_q_local, morceau_old_q, nnz_columns_global, startColumn, startColumn_in_result_vector_calculation_group, startRow_in_result_vector_calculation_group);
+
+        //Global Matrix-vector product new_q = P * old_q (Reduce)
+        MPI_Allreduce(morceau_new_q_local, morceau_new_q, local_result_vector_size, MPI_DOUBLE, MPI_SUM, RV_CALC_GROUP_COMM); //Produit matrice_vecteur global : Reduce des morceaux de new_q dans tout les processus du même groupe de calcul
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        /************ Damping ************/
+        //Multiplication of the result vector by the damping factor beta and addition of norm(old_q) * (1-beta) / n
+        to_add = sum_totale_old_q * (1-beta)/this->n_row/*this.[dimension globale]*/; //Ce qu'il y a à ajouter au résultat P.olq_q * beta. sum_total_old_q contient déjà la somme des éléments de old_q
+        for (i=startColumn_in_result_vector_calculation_group; i<startColumn_in_result_vector_calculation_group+dim_c; i++)
+        {
+            morceau_new_q_local[i] = morceau_new_q_local[i] * beta + to_add; //au final new_q = beta * P.old_q + norme(old_q) * (1-beta) / n    (la partie droite du + étant ajoutée à l'initialisation)
+        }
+
+        /************ Redistribution ************/
+        MPI_Bcast(morceau_new_q, local_result_vector_size, MPI_DOUBLE, pr_result_redistribution_root, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_q
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        /************ Normalization of the new result vector ************/
+        sum_new_q = 0;
+        for (i=0;i<local_result_vector_size;i++) {sum_new_q += morceau_new_q[i];}
+        MPI_Allreduce(&sum_new_q, &sum_totale_new_q, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes de tout les sum_new_q dans sum_totale_new_q, utile pour l'itération suivante
+        for (i=0;i<local_result_vector_size;i++) {morceau_new_q[i] *= 1/sum_totale_new_q;} //normalisation avec sum totale (tout processus confondu)
+	//std::cout << "[PageRank] sum_totale_new_q = " << sum_totale_new_q << std::endl;
+
+        /************ End of iteration Operations ************/
+        cpt_iterations++;
+        error_vect_local = abs_two_vector_error(morceau_new_q,morceau_old_q,local_result_vector_size); //calcul de l'erreur local
+        MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    /****************************************************************************************************/
+    /******************************************* PAGERANK END *******************************************/
+    /****************************************************************************************************/
+    //cpt_iterations contains the number of iterations done, morceau_new_q are the pieces of the vector containing the PageRank
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    //total_pagerank_time = my_gettimeofday() - start_pagerank_time; //end of PageRank time measurement
+    nb_iterations_done = cpt_iterations;
+
+    delete[] morceau_new_q_local;
+    delete[] morceau_old_q;
+    MPI_Comm_free(&ROW_COMM);
+    MPI_Comm_free(&COLUMN_COMM);
+    MPI_Comm_free(&RV_CALC_GROUP_COMM);
+    MPI_Comm_free(&INTER_RV_NEED_GROUP_COMM);
+
+    return morceau_new_q;
+}
+

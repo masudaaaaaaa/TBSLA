@@ -310,6 +310,18 @@ int main(int argc, char** argv) {
     std::cout << "Time normalization = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
   } else if(matrix == "cqmat") {
     m->fill_cqmat(matrix_dim, matrix_dim, C, Q, S, rank / GC, rank % GC, GR, GC);
+    double* s = new double[m->get_ln_col()];
+    double* b1 = new double[m->get_ln_col()];
+    double* b2 = new double[1];
+    std::cout << "Normalizing cqmat with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    MPI_Barrier(MPI_COMM_WORLD);
+    std::cout << "Normalized matrix" << std::endl;
+    delete[] s;
+    delete[] b1;
+    delete[] b2;
+    std::cout << "Matrix generation complete" << std::endl;
   } else if(matrix == "random_stoch") {
     auto t_one = now();
     m->fill_random(matrix_dim, matrix_dim, NNZ, S, rank / GC, rank % GC, GR, GC);
@@ -387,6 +399,9 @@ int main(int argc, char** argv) {
   if(input.has_opt("--numa-init")) {
     m->NUMAinit();
   }
+
+  long int sum_nnz = m->compute_sum_nnz(MPI_COMM_WORLD);
+
   auto t_op_start = now();
 
   int nb_iterations_total = 0;
@@ -395,25 +410,28 @@ int main(int argc, char** argv) {
   std::vector<double> gflops;
   for(int ir=0; ir<n_runs; ir++) {
     int nb_iterations_done;
-    std::cout << "Running PageRank" << std::endl;
+    std::cout << "Running PageRank - Iteration " << ir << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     auto t_op_start_iter = now();
-    double* res = m->page_rank(MPI_COMM_WORLD, beta, epsilon, max_iterations, nb_iterations_done);
+    //double* res = m->page_rank(MPI_COMM_WORLD, beta, epsilon, max_iterations, nb_iterations_done);
+    double* res = m->page_rank_opticom(max_iterations, beta, epsilon, nb_iterations_done);
     MPI_Barrier(MPI_COMM_WORLD);
     auto t_op_end_iter = now();
     std::cout << "...finished" << std::endl;
     double rt = (t_op_end_iter - t_op_start_iter) / 1e9;
     runtimes.push_back(rt);
-    double gfl = compute_gflops_pagerank(rt, m->get_n_col(), m->get_nnz(), nb_iterations_done);
+    double gfl_local = compute_gflops_pagerank(rt, m->get_n_col(), m->get_nnz(), nb_iterations_done);
+    long double gfl = compute_gflops_pagerank(rt, m->get_n_col(), sum_nnz, nb_iterations_done);
     gflops.push_back(gfl);
     std::cout << "runtime op = " << rt << std::endl;
-    std::cout << "gflops op = " << gfl << std::endl;
+    std::cout << "gflops local op = " << gfl_local << std::endl;
+    std::cout << "gflops total op = " << gfl << std::endl;
     for(int ires=0; ires<10; ires++)
       std::cout << res[ires] << "  ";
     std::cout << ".....";
-    for(int ires=(matrix_dim-10); ires<matrix_dim; ires++)
-      std::cout << res[ires] << "  ";
-    std::cout << "converged in " << nb_iterations_done << "iterations" << std::endl;
+    //for(int ires=(matrix_dim-10); ires<matrix_dim; ires++)
+    //  std::cout << res[ires] << "  ";
+    std::cout << "converged in " << nb_iterations_done << " iterations" << std::endl;
     nb_iterations_total += nb_iterations_done;
     delete[] res;
   }
@@ -421,7 +439,6 @@ int main(int argc, char** argv) {
   double median_op_time = compute_median(runtimes);
   double median_gflops = compute_median(gflops);
 
-  long int sum_nnz = m->compute_sum_nnz(MPI_COMM_WORLD);
   long int min_nnz = m->compute_min_nnz(MPI_COMM_WORLD);
   long int max_nnz = m->compute_max_nnz(MPI_COMM_WORLD);
 
