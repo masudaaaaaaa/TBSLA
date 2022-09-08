@@ -121,19 +121,22 @@ inline double tbsla::mpi::Matrix::pagerank_normalization(MPI_Comm comm, double* 
     MPI_Comm_free(&row_comm);
   }
   t_sum *= (1-beta)/this->n_col;
-  double max_val = 0;
-  #pragma omp parallel for reduction(max : max_val) schedule(static)
+  double sum_val = 0;
+  #pragma omp parallel for reduction(+ : sum_val) schedule(static)
   for(int k=0; k<this->ln_col; k++) {
     b[k] = beta*b[k] + t_sum;
-    if(b[k] > max_val)
-      max_val = b[k];
+    sum_val += b[k];
   }
-  double max_overall;
-  MPI_Allreduce(&max_val, &max_overall, 1, MPI_DOUBLE, MPI_MAX, comm);
+  double sum_overall;
+  MPI_Comm col_comm;
+  MPI_Comm_split(comm, this->pc, this->pr, &col_comm);
+  MPI_Allreduce(&sum, &sum_overall, 1, MPI_DOUBLE, MPI_SUM, col_comm);
+  MPI_Comm_free(&col_comm);
+  //std::cout << "[sum_overall] somme vecteur résultat = " << sum_overall << std::endl;
   double error = 0;
   #pragma omp parallel for reduction(+ : error) schedule(static)
   for(int k=0; k<this->ln_col; k++) {
-    b[k] /= max_overall;
+    b[k] /= sum_overall;
     error += std::abs(b[k]- b_t[k]);
   }
   double error_overall;
