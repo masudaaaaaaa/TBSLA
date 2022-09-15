@@ -1,6 +1,13 @@
 #/bin/bash
+#PJM -N "make_build"
+#PJM -L "node=2"
+#PJM -L "rscgrp=small"
+#PJM -L  "elapse=30:00"
+
 set -e
 
+export PROJECT_SOURCE_DIR=${HOME}/TBSLA/src
+export INSTALL_DIR=${HOME}/install
 export PATH=${INSTALL_DIR}/cmake/3.19.8/bin:$PATH
 
 rm -rf ${INSTALL_DIR}/tbsla
