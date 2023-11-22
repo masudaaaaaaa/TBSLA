@@ -47,6 +47,7 @@ class Matrix {
 	virtual void normalize_rows(double* s) = 0;
 	virtual void get_col_sums(double* buffer) = 0;
 	virtual void normalize_cols(double* s) = 0;
+    virtual void set_diag(double* s) = 0;
 
   protected:
     int n_row, n_col, f_row, f_col, ln_row, ln_col, pr, pc, NR, NC;

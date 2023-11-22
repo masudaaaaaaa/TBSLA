@@ -1210,6 +1210,23 @@ void tbsla::cpp::MatrixCSR::normalize_cols(double* s) {
   }
 }
 
+void tbsla::cpp::MatrixCSR::set_diag(double* s) {
+  std::cout << "diagonalised on cols " << this->f_col << " to " << this->f_col+this->ln_col << std::endl;
+  if(this->nnz==0) {
+    std::cout << "Nothing to do ; block matrix is empty" << std::endl;
+    return;
+  }
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
+      
+      double sval = s[this->colidx[j] - this->f_col];
+      if(sval > 0 &&this->colidx[j]==(this->f_row+i))
+        this->values[j] = s[this->colidx[j] - this->f_col];
+    }
+  }
+}
+
 void tbsla::cpp::MatrixCSR::NUMAinit() {
   if(this->nnz==0) {
     std::cout << "Nothing to do ; block matrix is empty" << std::endl;

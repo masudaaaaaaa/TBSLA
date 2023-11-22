@@ -832,6 +832,23 @@ void tbsla::cpp::MatrixELL::normalize_cols(double* s) {
   }
 }
 
+void tbsla::cpp::MatrixELL::set_diag(double* s) {
+  std::cout << "diagonalised on cols " << this->f_col << " to " << this->f_col+this->ln_col << std::endl;
+  if(this->nnz==0) {
+    std::cout << "Nothing to do ; block matrix is empty" << std::endl;
+    return;
+  }
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = 0; j < this->max_col; j++) {
+       //this->values[i * this->max_col + j] /= s[this->columns[i * this->max_col + j]];
+      double val = this->values[i * this->max_col + j];
+      double sval = s[this->columns[i * this->max_col + j] - this->f_col];
+      if(val>0 && sval>0 && this->columns[i * this->max_col + j]==i)
+        this->values[i * this->max_col + j] = sval;
+    }
+  }
+}
+
 void tbsla::cpp::MatrixELL::NUMAinit() {
   if(this->nnz==0) {
     std::cout << "Nothing to do ; block matrix is empty" << std::endl;

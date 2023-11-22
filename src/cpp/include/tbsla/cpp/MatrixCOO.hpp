@@ -39,6 +39,7 @@ class MatrixCOO : public virtual Matrix {
 	void normalize_rows(double* buffer);
 	void get_col_sums(double* buffer);
 	void normalize_cols(double* buffer);
+    void set_diag(double* s);
 
   protected:
     double* values;

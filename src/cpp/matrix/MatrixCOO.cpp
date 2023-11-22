@@ -395,6 +395,10 @@ void tbsla::cpp::MatrixCOO::normalize_cols(double* s) {
 
 }
 
+void tbsla::cpp::MatrixCOO::set_diag(double* s) {
+
+}
+
 void tbsla::cpp::MatrixCOO::NUMAinit() {
   double* newVal = new double[this->nnz];
   int* newCol = new int[this->nnz];

@@ -372,6 +372,42 @@ inline void tbsla::mpi::Matrix::make_stochastic(MPI_Comm comm, double* s, double
   this->normalize_cols(s);
 }
 
+
+/*
+ * comm : MPI communicator
+ * s : sum of rows ; internal use (size : n_row)
+ * buffer : buffer for internal operations (size : ln_row)
+ * buffer2 : buffer for internal operations (size : ln_row)
+ *
+ */
+// set diagonalle at sum of row
+
+inline void tbsla::mpi::Matrix::make_diagonally_dominant(MPI_Comm comm, double* s, double* buffer, double* buffer2) {
+  this->get_row_sums(buffer);
+  std::cout << "computed col_sums" << std::endl;
+  if(this->NC == 1) {
+    for(int k=0; k<this->ln_row; k++)
+      s[k] = buffer[k];
+  }
+  else if(this->NR == 1 && this->NC > 1) {
+    MPI_Allreduce(buffer, s, this->n_row, MPI_DOUBLE, MPI_SUM, comm);
+  } else {
+    std::cout << "NR > 1 and NC > 1" << std::endl;
+    MPI_Comm row_comm;
+    MPI_Comm_split(comm, this->pr, this->pc, &row_comm);
+    MPI_Allreduce(buffer, s, this->ln_row, MPI_DOUBLE, MPI_SUM, row_comm);
+
+    MPI_Comm_free(&row_comm);
+    std::cout << "end" << std::endl;
+  }
+  double tot = 0;
+  for(int i=0; i<this->ln_row; i++) {
+    tot += s[i];
+  }
+  std::cout <<"s[1]= "<< s[1] << "tot = " << tot << std::endl;
+  this->set_diag(s);
+}
+
 double* tbsla::mpi::Matrix::spmv(MPI_Comm comm, const double* v, int vect_incr) {
   double* send = this->spmv(v, vect_incr);
   if(this->NC == 1 && this->NR == 1) {
@@ -789,3 +825,228 @@ double * tbsla::mpi::Matrix::page_rank_opticom(int maxIter, double beta, double 
     return morceau_new_q;
 }
 
+
+
+double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta, double epsilon, int &nb_iterations_done)
+{
+    
+    //std::cout << "[PageRank] Entering PageRank" << std::endl;
+    int my_mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_mpi_rank);
+
+    /*---- Filling local MatrixBlock data ----*/
+    //std::cout << "[PageRank] Filling data for local Matrix Block" << std::endl;
+    int indl, indc, pr_result_redistribution_root, result_vector_calculation_group, indl_in_result_vector_calculation_group, indc_in_result_vector_calculation_group, inter_result_vector_need_group_communicaton_group, my_result_vector_calculation_group_rank;
+    long dim_l, dim_c, startRow, startColumn, endRow, endColumn, local_result_vector_size, startColumn_in_result_vector_calculation_group, startRow_in_result_vector_calculation_group;
+
+    int pgcd_nbr_nbc, local_result_vector_size_row_blocks, local_result_vector_size_column_blocks;
+    double grid_dim_factor;
+
+    int tmp_r = this->NR, tmp_c = this->NC;
+    while (tmp_c!=0) {pgcd_nbr_nbc = tmp_r % tmp_c; tmp_r = tmp_c; tmp_c = pgcd_nbr_nbc;}
+    pgcd_nbr_nbc = tmp_r;
+
+    /*this->NR = nb_blocks_row, this->NC = nb_blocks_column; this->n_row = n (dimension globale)*/
+    indl = my_mpi_rank / this->NC; //indice de ligne dans la grille 2D de processus
+    indc = my_mpi_rank % this->NC; //indice de colonne dans la grille 2D de processus
+    dim_l = this->n_row/this->NR; //nombre de lignes dans un block
+    dim_c = this->n_row/this->NC; //nombre de colonnes dans un block
+    startRow = indl*dim_l;
+    endRow = (indl+1)*dim_l -1;
+    startColumn = indc*dim_c;
+    endColumn = (indc+1)*dim_c -1;
+    grid_dim_factor = (double) this->NC / (double) this->NR;
+    pr_result_redistribution_root = (int) indc / grid_dim_factor;
+    local_result_vector_size_column_blocks = this->NC / pgcd_nbr_nbc;
+    local_result_vector_size_row_blocks = this->NR / pgcd_nbr_nbc;
+    local_result_vector_size = local_result_vector_size_row_blocks * dim_l;
+    result_vector_calculation_group = indl / local_result_vector_size_row_blocks;
+    indl_in_result_vector_calculation_group = indl % local_result_vector_size_row_blocks;
+    indc_in_result_vector_calculation_group = indc;
+    inter_result_vector_need_group_communicaton_group = (indc % local_result_vector_size_column_blocks) * this->NR + indl;
+    startColumn_in_result_vector_calculation_group = dim_c * (indc % local_result_vector_size_column_blocks);
+    startRow_in_result_vector_calculation_group = dim_l * indl_in_result_vector_calculation_group;
+    my_result_vector_calculation_group_rank = indl_in_result_vector_calculation_group * local_result_vector_size_row_blocks + indc;
+    /*---- Filled MatrixBlock data ----*/
+
+    double start_pagerank_time, total_pagerank_time;
+    
+    //std::cout << "[PageRank] Splitting Communicators" << std::endl;
+    /* Row and Column MPI communicators */
+    MPI_Comm ROW_COMM;
+    MPI_Comm_split(MPI_COMM_WORLD, indl, indc, &ROW_COMM);
+
+    MPI_Comm COLUMN_COMM;
+    MPI_Comm_split(MPI_COMM_WORLD, indc, indl, &COLUMN_COMM);
+
+    /* Calculation group and Need group communicators */
+    MPI_Comm RV_CALC_GROUP_COMM; //communicateur interne des groupes (qui regroupe sur les colonnes les blocks du même groupe de calcul)
+    MPI_Comm_split(MPI_COMM_WORLD, result_vector_calculation_group, my_result_vector_calculation_group_rank, &RV_CALC_GROUP_COMM);
+
+    MPI_Comm INTER_RV_NEED_GROUP_COMM; //communicateur externe des groupes de besoin (groupes sur les lignes) ; permet de calculer l'erreur et la somme totale du vecteur
+    MPI_Comm_split(MPI_COMM_WORLD, inter_result_vector_need_group_communicaton_group, my_mpi_rank, &INTER_RV_NEED_GROUP_COMM);
+
+    long i,j; //loops
+    long cpt_iterations;
+    double alpha_i,rho,new_rho,beta,product_w_v;
+    double error_vect,error_vect_local;
+    double *morceau_new_y, *morceau_new_y_local, *morceau_old_y,*tmp;
+    double *morceau_new_r, *morceau_old_r;
+    double *morceau_v;
+    double *morceau_new_w_local,morceau_new_w;
+    
+    //double to_add,sum_totale_old_q,sum_totale_new_q,sum_new_q,tmp_sum;
+    //init variables PageRank
+    cpt_iterations = 0; error_vect=10000;//INFINITY;
+
+    //memory allocation for old_q and new_q, and new_q initialization
+    //std::cout << "[PageRank] Memory allocation for 3 vectors of size " << local_result_vector_size << std::endl;
+    morceau_new_y = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_new_y_local = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_old_y = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_new_r = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_old_r = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_v = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_new_w = (double *)malloc(local_result_vector_size * sizeof(double));
+    morceau_new_w_local = (double *)malloc(local_result_vector_size * sizeof(double));
+    
+    for (i=0;i<local_result_vector_size;i++) {morceau_new_y[i] = (double) 1/this->n_row/*this.[dimension globale]*/;}
+    //reset morceau_new_y_local for new iteration
+    for (i=0; i<local_result_vector_size; i++)
+    {
+        morceau_new_y_local[i] = 0;
+    }
+    
+    /**************************************************************************************************************************/
+    /******************************************** CONJUGATE GRADIENT initialization ********************************************/
+    /**************************************************************************************************************************/
+    
+    
+    this->Ax(&(morceau_new_y_local[startRow_in_result_vector_calculation_group]), morceau_new_y, 0);
+    MPI_Allreduce(morceau_new_y_local, morceau_new_r, local_result_vector_size, MPI_DOUBLE, MPI_SUM, RV_CALC_GROUP_COMM); //Produit matrice_vecteur global : Reduce des morceaux de new_q dans tout les processus du même groupe de calcul
+    MPI_Barrier(MPI_COMM_WORLD);
+    double somme_b=0;
+    for(i=0;i<local_result_vector_size;i++){
+        morceau_b[i]=rand();
+        somme_b=morceau_b[i];
+    }
+    for(i=0;i<local_result_vector_size;i++){
+        morceau_b[i]=morceau_b[i]/somme_b;
+    }
+    
+    for(i=0;i<local_result_vector_size;i++){
+        morceau_new_r[i]=morceau_b[i]-morceau_new_r[i];
+    }
+    MPI_Bcast(morceau_new_r, local_result_vector_size, MPI_DOUBLE, pr_result_redistribution_root, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_q
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    /************* p0=(r0,r0) *************/
+    for (i=startColumn_in_result_vector_calculation_group; i<startColumn_in_result_vector_calculation_group+dim_c; i++)
+    {
+        new_rho=morceau_new_r[i]*morceau_new_r[i];
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &p, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    /************* V0=r0 *************/
+    for(i=0;i<local_result_vector_size;i++){
+        morceau_v[i]=morceau_new_r[i];
+    }
+    
+    /************************************************************************************************************/
+    /***************************************** CONJUGATE GRADIENT START *****************************************/
+    /************************************************************************************************************/
+    while (error_vect > epsilon /*&& !one_in_vector(morceau_new_q,local_result_vector_size)*/ && cpt_iterations<maxIter)
+    {
+        /************ Preparation for iteration ************/
+        //old_v <=> new_v  &   old_r <=> new_r & old_v <=> new_v
+        tmp = morceau_new_r;
+        morceau_new_r = morceau_old_r;
+        morceau_old_r = tmp;
+        tmp = morceau_new_y;
+        morceau_new_y = morceau_old_y;
+        morceau_old_y = tmp;
+        rho=new_rho;
+        
+        //reset product_w_v, new_rho for new iteration
+        product_w_v=0;
+        new_rho=0;
+        //iterations are done on new_v
+
+        //reset morceau_new_w_local for new iteration
+        for (i=0; i<local_result_vector_size; i++)
+        {
+            morceau_new_w_local[i] = 0;
+        }
+        
+        /************* w_i=A_i*vi *************/
+        this->Ax(&(morceau_new_w_local[startRow_in_result_vector_calculation_group]), morceau_v, 0);
+        MPI_Allreduce(morceau_new_w_local, morceau_new_w, local_result_vector_size, MPI_DOUBLE, MPI_SUM, RV_CALC_GROUP_COMM); //Produit matrice_vecteur global : Reduce des morceaux de new_q dans tout les processus du même groupe de calcul
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Bcast(morceau_new_w, local_result_vector_size, MPI_DOUBLE, pr_result_redistribution_root, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_w
+        MPI_Barrier(MPI_COMM_WORLD);
+        
+        /************* alpha_i= p_i/(w_i,v_i) *************/
+        for(i=0,i<local_result_vector_size;i++){
+            product_w_v+=morceau_new_w[i]*morceau_v[i];
+        }
+        MPI_Allreduce(MPI_IN_PLACE, &product_w_v, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        MPI_Barrier(MPI_COMM_WORLD);
+        alpha_i=rho/product_w_v;
+        
+        /************* y_i+1= y_i+alpha_i*v_i *************/
+        for (i=0; i<local_result_vector_size; i++)
+        {
+            morceau_new_y[i] = morceau_v[i] * alpha_i + morceau_old_y[i]; 
+        }
+        
+        /************* r_i+1= r_i+alpha_i*w_i *************/
+        for (i=0; i<local_result_vector_size; i++)
+        {
+            morceau_new_r[i] = morceau_old_r[i]+morceau_new_w[i] * alpha_i ; 
+        }
+        
+        /************* p_i+1= (r_i+1,r_i+1) *************/
+        for (i=0; i<local_result_vector_size; i++)
+        {
+            new_rho += morceau_new_r[i] * morceau_new_r[i]; 
+        }
+        MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        MPI_Barrier(MPI_COMM_WORLD);
+        /************* beta_i= p_i+1/p_i *************/
+        beta=new_rho/rho;
+        /************* v_i+1= r_i+1+beta_i*v_i *************/
+        for (i=0; i<local_result_vector_size; i++)
+        {
+            morceau_v[i]=morceau_new_r[i]+beta*morceau_v[i];
+        }
+        
+        /************ End of iteration Operations ************/
+        cpt_iterations++;
+        error_vect_local = abs_two_vector_error(morceau_new_r,morceau_old_r,local_result_vector_size); //calcul de l'erreur local
+        MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    /****************************************************************************************************/
+    /******************************************* CONJUGATE GRADIENT END *******************************************/
+    /****************************************************************************************************/
+    //cpt_iterations contains the number of iterations done, morceau_new_q are the pieces of the vector containing the PageRank
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    //total_pagerank_time = my_gettimeofday() - start_pagerank_time; //end of PageRank time measurement
+    nb_iterations_done = cpt_iterations;
+
+    delete[] morceau_v;
+    delete[] morceau_new_w_local;
+    delete[] morceau_new_w;
+    delete[] morceau_new_r;
+    delete[] morceau_old_r;
+    delete[] morceau_new_y_local;
+    delete[] morceau_old_y;
+    MPI_Comm_free(&ROW_COMM);
+    MPI_Comm_free(&COLUMN_COMM);
+    MPI_Comm_free(&RV_CALC_GROUP_COMM);
+    MPI_Comm_free(&INTER_RV_NEED_GROUP_COMM);
+
+    return morceau_new_y;
+}

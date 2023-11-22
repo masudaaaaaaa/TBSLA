@@ -317,6 +317,10 @@ void tbsla::cpp::MatrixDENSE::normalize_cols(double* s) {
 
 }
 
+void tbsla::cpp::MatrixDENSE::set_diag(double* s) {
+
+}
+
 void tbsla::cpp::MatrixDENSE::NUMAinit() {
   double* newVal = new double[this->ln_row * this->ln_col];
 

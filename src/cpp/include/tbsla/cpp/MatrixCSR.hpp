@@ -34,6 +34,7 @@ class MatrixCSR : public virtual Matrix {
 	void normalize_rows(double* s);
 	void get_col_sums(double* buffer);
 	void normalize_cols(double* s);
+    void set_diag(double* s);
 
   protected:
     double* values;

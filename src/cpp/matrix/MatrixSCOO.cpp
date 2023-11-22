@@ -737,6 +737,20 @@ void tbsla::cpp::MatrixSCOO::normalize_cols(double* s) {
   std::cout << "normalized ; nnz = " << this->nnz << std::endl;
 }
 
+void tbsla::cpp::MatrixSCOO::set_diag(double* s) {
+  if(this->nnz==0) {
+    std::cout << "Nothing to do ; block matrix is empty" << std::endl;
+    return;
+  }
+  #pragma omp parallel for schedule(static)
+  for(int k=0; k<this->nnz; k++) {
+    double sval = s[this->row[k] - this->f_row];
+    if(sval>0 && this->col[k]==this->row[k])
+      this->values[k] = sval;
+  }
+  std::cout << "diagonalised ; nnz = " << this->nnz << std::endl;
+}
+
 void tbsla::cpp::MatrixSCOO::NUMAinit() {
   if(this->nnz==0) {
     std::cout << "Nothing to do ; block matrix is empty" << std::endl;
