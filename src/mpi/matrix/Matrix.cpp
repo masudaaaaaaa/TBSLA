@@ -953,7 +953,18 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
     for(i=0;i<local_result_vector_size;i++){
         morceau_v[i]=morceau_new_r[i];
     }
-    
+    /*std::cout<<"vector b:";
+    for (i=0;i<local_result_vector_size;i++){
+    	std::cout<<morceau_b[i]<<" ";
+    }
+    std::cout<<std::endl;
+
+    std::cout<<"morceau_r debut:";
+    for(i=0;i<local_result_vector_size;i++){
+        std::cout<<morceau_new_r<<" ";
+    }
+    std::cout<<std::endl;
+    */
     /************************************************************************************************************/
     /***************************************** CONJUGATE GRADIENT START *****************************************/
     /************************************************************************************************************/
@@ -1024,15 +1035,21 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         
         /************ End of iteration Operations ************/
         cpt_iterations++;
-        error_vect_local = abs_two_vector_error(morceau_new_r,morceau_old_r,local_result_vector_size); //calcul de l'erreur local
+        error_vect_local = abs_two_vector_error(morceau_new_r,morceau_b,local_result_vector_size); //calcul de l'erreur local
         MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
         MPI_Barrier(MPI_COMM_WORLD);
-        std::cout << "iteration: "<<cpt_iterations<<"error local: "<<error_vect_local <<"error vect:"<<error_vect;
+        std::cout << "iteration: "<<cpt_iterations<<", error local: "<<error_vect_local <<", error vect:"<<error_vect<<std::endl;
     }
     /****************************************************************************************************/
     /******************************************* CONJUGATE GRADIENT END *******************************************/
     /****************************************************************************************************/
     //cpt_iterations contains the number of iterations done, morceau_new_q are the pieces of the vector containing the PageRank
+    /*std::cout<<"morceau_r fin:";
+    for(i=0;i<local_result_vector_size;i++){
+    	std::cout<<morceau_new_r<<" ";
+    }
+    std::cout<<std::endl;
+*/
 
     MPI_Barrier(MPI_COMM_WORLD);
     //total_pagerank_time = my_gettimeofday() - start_pagerank_time; //end of PageRank time measurement
