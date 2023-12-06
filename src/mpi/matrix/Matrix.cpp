@@ -647,6 +647,15 @@ double abs_two_vector_error(double *vect1, double *vect2, int size)
     return sum;
 }
 
+double abs_one_vector_error(double *vect1,  int size)
+{
+    /*Calculate the error (norm) between two vectors of size "size"*/
+    double sum=0;
+    for (int i=0;i<size;i++)
+    {sum += std::abs(vect1[i] - 0);}
+    return sum;
+}
+
 /*
 Variables used in PageRank and what they correspond to :
 (See help PDF for more info)
@@ -1041,7 +1050,7 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         
         /************ End of iteration Operations ************/
         cpt_iterations++;
-        error_vect_local = abs_two_vector_error(morceau_new_y,morceau_b,local_result_vector_size); //calcul de l'erreur local
+        error_vect_local = abs_one_vector_error(morceau_new_r,local_result_vector_size); //calcul de l'erreur local
         MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
         MPI_Barrier(MPI_COMM_WORLD);
         std::cout << "iteration: "<<cpt_iterations<<", error local: "<<error_vect_local <<", error vect:"<<error_vect<<std::endl;
