@@ -1027,6 +1027,7 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         error_vect_local = abs_two_vector_error(morceau_new_r,morceau_old_r,local_result_vector_size); //calcul de l'erreur local
         MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
         MPI_Barrier(MPI_COMM_WORLD);
+        std::cout << "iteration: "<<cpt_iterations<<"error local: "<<error_vect_local <<"error vect:"<<error_vect;
     }
     /****************************************************************************************************/
     /******************************************* CONJUGATE GRADIENT END *******************************************/
