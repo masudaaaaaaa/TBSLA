@@ -929,8 +929,15 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
     double morceau_b[local_result_vector_size];
     for(i=0;i<local_result_vector_size;i++){
         morceau_b[i]=rand();
+    }
+    MPI_Bcast(morceau_b, local_result_vector_size, MPI_DOUBLE, 0, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_r
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    for(i=0;i<local_result_vector_size;i++){
         somme_b+=morceau_b[i];
     }
+    MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+
     for(i=0;i<local_result_vector_size;i++){
         morceau_b[i]=morceau_b[i]/somme_b;
     }
@@ -938,13 +945,12 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
     for(i=0;i<local_result_vector_size;i++){
         morceau_new_r[i]=morceau_b[i]-morceau_new_r[i];
     }
-    MPI_Bcast(morceau_new_r, local_result_vector_size, MPI_DOUBLE, 0, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_r
-    MPI_Barrier(MPI_COMM_WORLD);
+    
     
     /************* p0=(r0,r0) *************/
     for (i=startColumn_in_result_vector_calculation_group; i<startColumn_in_result_vector_calculation_group+dim_c; i++)
     {
-        new_rho=morceau_new_r[i]*morceau_new_r[i];
+        new_rho+=morceau_new_r[i]*morceau_new_r[i];
     }
     MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
     MPI_Barrier(MPI_COMM_WORLD);
@@ -1035,7 +1041,7 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         
         /************ End of iteration Operations ************/
         cpt_iterations++;
-        error_vect_local = abs_two_vector_error(morceau_new_r,morceau_b,local_result_vector_size); //calcul de l'erreur local
+        error_vect_local = abs_two_vector_error(morceau_new_y,morceau_b,local_result_vector_size); //calcul de l'erreur local
         MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
         MPI_Barrier(MPI_COMM_WORLD);
         std::cout << "iteration: "<<cpt_iterations<<", error local: "<<error_vect_local <<", error vect:"<<error_vect<<std::endl;
