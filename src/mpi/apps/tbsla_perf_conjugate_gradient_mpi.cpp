@@ -379,6 +379,9 @@ int main(int argc, char** argv) {
   int n_runs = 10;
   std::vector<double> runtimes;
   std::vector<double> gflops;
+  std::cout << "Matrix" << std::endl;
+  std::cout << m->print_as_dense() << std::endl;
+  
   for(int ir=0; ir<n_runs; ir++) {
     int nb_iterations_done;
     std::cout << "Running PageRank - Iteration " << ir << std::endl;

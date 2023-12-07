@@ -1008,7 +1008,7 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         
         /************* w_i=A_i*vi *************/
         this->Ax(&(morceau_new_w_local[startRow_in_result_vector_calculation_group]), morceau_v, 0);
-        MPI_Allreduce(morceau_new_w_local, morceau_new_w, local_result_vector_size, MPI_DOUBLE, //MPI_SUM, RV_CALC_GROUP_COMM); //Produit matrice_vecteur global : Reduce des morceaux de new_q dans tout les processus du même groupe de calcul
+        MPI_Allreduce(morceau_new_w_local, morceau_new_w, local_result_vector_size, MPI_DOUBLE, MPI_SUM, RV_CALC_GROUP_COMM); //Produit matrice_vecteur global : Reduce des morceaux de new_q dans tout les processus du même groupe de calcul
         MPI_Barrier(MPI_COMM_WORLD);
         //MPI_Bcast(morceau_new_w, local_result_vector_size, MPI_DOUBLE, pr_result_redistribution_root, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_w
         //MPI_Barrier(MPI_COMM_WORLD);
@@ -1033,6 +1033,10 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
             morceau_new_r[i] = morceau_old_r[i]-morceau_new_w[i] * alpha_i ; 
         }
         
+        error_vect_local = abs_one_vector_error(morceau_new_r,local_result_vector_size); //calcul de l'erreur local
+        MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        MPI_Barrier(MPI_COMM_WORLD);
+        
         /************* p_i+1= (r_i+1,r_i+1) *************/
         for (i=0; i<local_result_vector_size; i++)
         {
@@ -1050,9 +1054,6 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         
         /************ End of iteration Operations ************/
         cpt_iterations++;
-        error_vect_local = abs_one_vector_error(morceau_new_r,local_result_vector_size); //calcul de l'erreur local
-        //MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
-        //MPI_Barrier(MPI_COMM_WORLD);
         std::cout << "iteration: "<<cpt_iterations<<", error local: "<<error_vect_local <<", error vect:"<<error_vect<<" alpha: "<< alpha_i<<" rho:"<<new_rho<<" beta: "<< beta<<std::endl;
     }
     /****************************************************************************************************/
