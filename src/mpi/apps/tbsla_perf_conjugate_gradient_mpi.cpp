@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
     auto t_three = now();
     std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
@@ -267,7 +267,7 @@ int main(int argc, char** argv) {
     double* b2 = new double[1];
     std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Diagonally dominante matrix" << std::endl;
     std::cout << "Normalizing cqmat with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
@@ -302,7 +302,7 @@ int main(int argc, char** argv) {
     auto t_three = now();
     std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
@@ -339,7 +339,7 @@ int main(int argc, char** argv) {
     auto t_three = now();
     std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
@@ -380,7 +380,7 @@ int main(int argc, char** argv) {
   std::vector<double> runtimes;
   std::vector<double> gflops;
   std::cout << "Matrix" << std::endl;
-  std::cout << m->print_as_dense() << std::endl;
+  m->print_as_dense(std::cout) << std::endl;
   
   for(int ir=0; ir<n_runs; ir++) {
     int nb_iterations_done;
