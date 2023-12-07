@@ -939,13 +939,13 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
     for(i=0;i<local_result_vector_size;i++){
         morceau_b[i]=rand();
     }
-    MPI_Bcast(morceau_b, local_result_vector_size, MPI_DOUBLE, 0, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_r
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Bcast(morceau_b, local_result_vector_size, MPI_DOUBLE, 0, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_r
+    //MPI_Barrier(MPI_COMM_WORLD);
     
     for(i=0;i<local_result_vector_size;i++){
         somme_b+=morceau_b[i];
     }
-    MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+    //MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
 
     for(i=0;i<local_result_vector_size;i++){
         morceau_b[i]=morceau_b[i]/somme_b;
@@ -961,25 +961,25 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
     {
         new_rho+=morceau_new_r[i]*morceau_new_r[i];
     }
-    MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+    //MPI_Barrier(MPI_COMM_WORLD);
     
     /************* V0=r0 *************/
     for(i=0;i<local_result_vector_size;i++){
         morceau_v[i]=morceau_new_r[i];
     }
-    /*std::cout<<"vector b:";
-    for (i=0;i<local_result_vector_size;i++){
+    std::cout<<"vector b:";
+    for (i=0;i<10;i++){
     	std::cout<<morceau_b[i]<<" ";
     }
     std::cout<<std::endl;
 
     std::cout<<"morceau_r debut:";
-    for(i=0;i<local_result_vector_size;i++){
+    for(i=0;i<10;i++){
         std::cout<<morceau_new_r<<" ";
     }
     std::cout<<std::endl;
-    */
+    
     /************************************************************************************************************/
     /***************************************** CONJUGATE GRADIENT START *****************************************/
     /************************************************************************************************************/
@@ -1008,23 +1008,23 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         
         /************* w_i=A_i*vi *************/
         this->Ax(&(morceau_new_w_local[startRow_in_result_vector_calculation_group]), morceau_v, 0);
-        MPI_Allreduce(morceau_new_w_local, morceau_new_w, local_result_vector_size, MPI_DOUBLE, MPI_SUM, RV_CALC_GROUP_COMM); //Produit matrice_vecteur global : Reduce des morceaux de new_q dans tout les processus du même groupe de calcul
+        MPI_Allreduce(morceau_new_w_local, morceau_new_w, local_result_vector_size, MPI_DOUBLE, //MPI_SUM, RV_CALC_GROUP_COMM); //Produit matrice_vecteur global : Reduce des morceaux de new_q dans tout les processus du même groupe de calcul
         MPI_Barrier(MPI_COMM_WORLD);
-        MPI_Bcast(morceau_new_w, local_result_vector_size, MPI_DOUBLE, pr_result_redistribution_root, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_w
-        MPI_Barrier(MPI_COMM_WORLD);
+        //MPI_Bcast(morceau_new_w, local_result_vector_size, MPI_DOUBLE, pr_result_redistribution_root, COLUMN_COMM); //chaque processus d'une "ligne de processus" (dans la grille) contient le même morceau de new_w
+        //MPI_Barrier(MPI_COMM_WORLD);
         
         /************* alpha_i= p_i/(w_i,v_i) *************/
         for(i=0;i<local_result_vector_size;i++){
             product_w_v+=morceau_new_w[i]*morceau_v[i];
         }
-        MPI_Allreduce(MPI_IN_PLACE, &product_w_v, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
-        MPI_Barrier(MPI_COMM_WORLD);
+        //MPI_Allreduce(MPI_IN_PLACE, &product_w_v, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        //MPI_Barrier(MPI_COMM_WORLD);
         alpha_i=rho/product_w_v;
         
         /************* y_i+1= y_i+alpha_i*v_i *************/
         for (i=0; i<local_result_vector_size; i++)
         {
-            morceau_new_y[i] = morceau_v[i] * alpha_i + morceau_old_y[i]; 
+            morceau_new_y[i] =  morceau_old_y[i] + morceau_v[i] * alpha_i; 
         }
         
         /************* r_i+1= r_i+alpha_i*w_i *************/
@@ -1038,8 +1038,8 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         {
             new_rho += morceau_new_r[i] * morceau_new_r[i]; 
         }
-        MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
-        MPI_Barrier(MPI_COMM_WORLD);
+        //MPI_Allreduce(MPI_IN_PLACE, &new_rho, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        //MPI_Barrier(MPI_COMM_WORLD);
         /************* beta_i= p_i+1/p_i *************/
         beta=new_rho/rho;
         /************* v_i+1= r_i+1+beta_i*v_i *************/
@@ -1051,9 +1051,9 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         /************ End of iteration Operations ************/
         cpt_iterations++;
         error_vect_local = abs_one_vector_error(morceau_new_r,local_result_vector_size); //calcul de l'erreur local
-        MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
-        MPI_Barrier(MPI_COMM_WORLD);
-        std::cout << "iteration: "<<cpt_iterations<<", error local: "<<error_vect_local <<", error vect:"<<error_vect<<std::endl;
+        //MPI_Allreduce(&error_vect_local, &error_vect, 1, MPI_DOUBLE, MPI_SUM, INTER_RV_NEED_GROUP_COMM); //somme MPI_SUM sur les colonnes des erreures locales pour avoir l'erreure totale
+        //MPI_Barrier(MPI_COMM_WORLD);
+        std::cout << "iteration: "<<cpt_iterations<<", error local: "<<error_vect_local <<", error vect:"<<error_vect<<" alpha: "<< alpha_i<<" rho:"<<new_rho<<" beta: "<< beta<<std::endl;
     }
     /****************************************************************************************************/
     /******************************************* CONJUGATE GRADIENT END *******************************************/
@@ -1066,7 +1066,7 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
     std::cout<<std::endl;
 */
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
     //total_pagerank_time = my_gettimeofday() - start_pagerank_time; //end of PageRank time measurement
     nb_iterations_done = cpt_iterations;
 
