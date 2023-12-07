@@ -1030,7 +1030,7 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         /************* r_i+1= r_i+alpha_i*w_i *************/
         for (i=0; i<local_result_vector_size; i++)
         {
-            morceau_new_r[i] = morceau_old_r[i]+morceau_new_w[i] * alpha_i ; 
+            morceau_new_r[i] = morceau_old_r[i]-morceau_new_w[i] * alpha_i ; 
         }
         
         /************* p_i+1= (r_i+1,r_i+1) *************/
