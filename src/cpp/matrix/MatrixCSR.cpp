@@ -1216,21 +1216,21 @@ void tbsla::cpp::MatrixCSR::set_diag(double* s) {
     std::cout << "Nothing to do ; block matrix is empty" << std::endl;
     return;
   }
-  nb_val_diag=0;
+  int nb_val_diag=0;
   #pragma omp parallel for schedule(static) reduction(+:nb_val_diag)
   for (int i = 0; i < this->ln_row; i++) {
     if(this->colidx[this->rowptr[i]] <=this->f_row+i && this->colidx[this->rowptr[i + 1]]>=this->f_row+i){
         nb_val_diag++;
         for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
             
-            if( &&this->colidx[j]==(this->f_row+i))
+            if( this->colidx[j]==(this->f_row+i))
                 nb_val_diag--;
         }
     }
   }
   double *temp_values=new double[this->rowptr[this->nnz]+nb_val_diag];
   int *temp_colidx=new int[this->rowptr[this->nnz]+nb_val_diag];
-  int *temp_rowptr=new new int[ln_row + 1]
+  int *temp_rowptr=new int[ln_row + 1];
   int decal=0;
   temp_rowptr[0]=this->rowptr[0];
   #pragma omp parallel for schedule(static)
