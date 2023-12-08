@@ -1243,7 +1243,7 @@ void tbsla::cpp::MatrixCSR::set_diag(double* s) {
         }else if(this->colidx[j]<(this->f_row+i)){
             if(this->colidx[j-1]>(this->f_row+i)){
                 temp_values[j+decal] = s[this->colidx[j] - this->f_col];
-                temp_colidx=i;
+                temp_colidx[j+decal]=i;
                 decal++;
                 temp_values[j+decal] = this->values[j];
                 temp_colidx[j+decal]=this->colidx[j];
@@ -1262,7 +1262,7 @@ void tbsla::cpp::MatrixCSR::set_diag(double* s) {
   delete[] this->values;
   delete[] this->colidx;
   delete[] this->rowptr;
-  this->value=temp_values;
+  this->values=temp_values;
   this->colidx=temp_colidx;
   this->rowptr=temp_rowptr;
 }
