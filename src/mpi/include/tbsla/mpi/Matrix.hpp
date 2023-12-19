@@ -41,6 +41,7 @@ class Matrix : public virtual tbsla::cpp::Matrix {
     using tbsla::cpp::Matrix::fill_cqmat;
     using tbsla::cpp::Matrix::fill_random;
     using tbsla::cpp::Matrix::fill_brain;
+    using tbsla::cpp::Matrix::fill_cdistrib;
     using tbsla::cpp::Matrix::spmv;
     using tbsla::cpp::Matrix::Ax;
 	using tbsla::cpp::Matrix::get_row_sums;

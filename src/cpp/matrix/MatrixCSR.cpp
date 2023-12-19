@@ -484,6 +484,51 @@ void tbsla::cpp::MatrixCSR::fill_cqmat(int n_row, int n_col, int c, double q, un
   std::cout << "Done\n";
 }
 
+void tbsla::cpp::MatrixCSR::fill_cdistrib(int n_row, int n_col, double nnz, int pr, int pc, int NR, int NC) {
+  this->n_row = n_row;
+  this->n_col = n_col;
+  this->pr = pr;
+  this->pc = pc;
+  this->NR = NR;
+  this->NC = NC;
+
+  if (this->values)
+    delete[] this->values;
+  if (this->rowptr)
+    delete[] this->rowptr;
+  if (this->colidx)
+    delete[] this->colidx;
+
+  ln_row = tbsla::utils::range::lnv(n_row, pr, NR);
+  f_row = tbsla::utils::range::pflv(n_row, pr, NR);
+  ln_col = tbsla::utils::range::lnv(n_col, pc, NC);
+  f_col = tbsla::utils::range::pflv(n_col, pc, NC);
+  this->nnz=nnz*this->n_col;
+  
+  this->values = new double[this->nnz];
+  this->colidx = new int[this->nnz];
+  this->rowptr = new int[ln_row + 1];
+  
+  
+  int pas  = nnz/n_col;
+  std::cout << "nnz = " << this->nnz  << std::endl;
+  incr=0;
+  for(long int i = 0; i < ln_row; i++) {
+     for (long int j=i%pas; j<ln_col; j+=pas){
+      this->colidx[incr] = j;
+      if(i*j%2==0){
+        this->values[incr] = (1)/(i+j);
+      }else{
+          this->values[incr] = (-1)/(i+j);
+      }
+      incr++;
+    }
+    this->rowptr[i + 1] = this->rowptr[i]+nnz;
+  }
+  std::cout << "Done" << std::endl;
+  std::cout << "incr = " << incr << std::endl;
+}
+
 /*void tbsla::cpp::MatrixCSR::fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult, int pr, int pc, int NR, int NC) {
   this->n_row = n_row;
   this->n_col = n_col;
