@@ -237,10 +237,10 @@ int main(int argc, char** argv) {
     auto t_one = now();
     m->fill_cdiag(matrix_dim, matrix_dim, C, rank / GC, rank % GC, GR, GC);
     auto t_two = now();
-    double* s = new double[m->get_ln_col()];
-    double* b1 = new double[m->get_ln_col()];
+    double* s = new double[m->get_ln_row()];
+    double* b1 = new double[m->get_ln_row()];
     double* b2 = new double[1];
-    for(int i = 0; i < m->get_ln_col(); i++) {
+    for(int i = 0; i < m->get_ln_row(); i++) {
       s[i] = 0;
       b1[i] = 0;
     }
@@ -251,6 +251,16 @@ int main(int argc, char** argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
+    delete[] s;
+    delete[] b1;
+    delete[] b2;
+    double* s = new double[m->get_ln_col()];
+    double* b1 = new double[m->get_ln_col()];
+    double* b2 = new double[1];
+    for(int i = 0; i < m->get_ln_col(); i++) {
+      s[i] = 0;
+      b1[i] = 0;
+    }
     std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
@@ -266,14 +276,24 @@ int main(int argc, char** argv) {
     std::cout << "Time normalization = " << std::to_string((t_five-t_four) / 1e9) << std::endl;
   } else if(matrix == "cqmat") {
     m->fill_cqmat(matrix_dim, matrix_dim, C, Q, S, rank / GC, rank % GC, GR, GC);
-    double* s = new double[m->get_ln_col()];
-    double* b1 = new double[m->get_ln_col()];
+    double* s = new double[m->get_ln_row()];
+    double* b1 = new double[m->get_ln_row()];
     double* b2 = new double[1];
     std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Diagonally dominante matrix" << std::endl;
+    delete[] s;
+    delete[] b1;
+    delete[] b2;
+    double* s = new double[m->get_ln_col()];
+    double* b1 = new double[m->get_ln_col()];
+    double* b2 = new double[1];
+    for(int i = 0; i < m->get_ln_col(); i++) {
+      s[i] = 0;
+      b1[i] = 0;
+    }
     std::cout << "Normalizing cqmat with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
@@ -288,8 +308,8 @@ int main(int argc, char** argv) {
     m->fill_random(matrix_dim, matrix_dim, NNZ,  rank / GC, rank % GC, GR, GC);
     auto t_two = now();
     //double* s = new double[matrix_dim];
-    double* s = new double[m->get_ln_col()];
-    double* b1 = new double[m->get_ln_col()];
+    double* s = new double[m->get_ln_row()];
+    double* b1 = new double[m->get_ln_row()];
     //double* b2 = new double[m->get_ln_col()];
     double* b2 = new double[1];
     /*for(int i = 0; i < matrix_dim; i++) {
@@ -299,7 +319,7 @@ int main(int argc, char** argv) {
       b1[i] = 0;
       b2[i] = 0;
     }*/
-    for(int i = 0; i < m->get_ln_col(); i++) {
+    for(int i = 0; i < m->get_ln_row(); i++) {
       s[i] = 0;
       b1[i] = 0;
     }
@@ -312,6 +332,22 @@ int main(int argc, char** argv) {
     m->print_as_dense(std::cout) << std::endl;
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
+    delete[] s;
+    delete[] b1;
+    delete[] b2;
+    double* s = new double[m->get_ln_col()];
+    double* b1 = new double[m->get_ln_col()];
+    double* b2 = new double[1];
+    for(int i = 0; i < m->get_ln_col(); i++) {
+      s[i] = 0;
+      b1[i] = 0;
+    }
+    std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_five = now();
+    std::cout << "Normalized matrix" << std::endl;
     std::cout << "Matrix" << std::endl;
     m->print(std::cout) << std::endl;
     m->print_as_dense(std::cout) << std::endl;
@@ -321,6 +357,7 @@ int main(int argc, char** argv) {
     std::cout << "Matrix generation complete" << std::endl;
     std::cout << "Time random filling = " << std::to_string((t_two-t_one) / 1e9) << std::endl;
     std::cout << "Time making diagonally dominante = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
+    std::cout << "Time normalization = " << std::to_string((t_five-t_four) / 1e9) << std::endl;
     } else if(matrix == "cdistrib") {
     auto t_one = now();
     m->fill_cdistrib(matrix_dim, matrix_dim, NNZ, S, rank / GC, rank % GC, GR, GC);
@@ -350,12 +387,6 @@ int main(int argc, char** argv) {
     m->print_as_dense(std::cout) << std::endl;
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
-    std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
-    MPI_Barrier(MPI_COMM_WORLD);
-    auto t_five = now();
-    std::cout << "Normalized matrix" << std::endl;
     std::cout << "Matrix" << std::endl;
     m->print(std::cout) << std::endl;
     m->print_as_dense(std::cout) << std::endl;
@@ -365,7 +396,6 @@ int main(int argc, char** argv) {
     std::cout << "Matrix generation complete" << std::endl;
     std::cout << "Time random filling = " << std::to_string((t_two-t_one) / 1e9) << std::endl;
     std::cout << "Time making diagonally dominante = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
-    std::cout << "Time normalization = " << std::to_string((t_five-t_four) / 1e9) << std::endl;
     }else if(matrix == "brain") {
     std::cout << "Init brain structure..." << std::endl;
     std::vector<std::vector<double> > proba_conn;
@@ -376,10 +406,10 @@ int main(int argc, char** argv) {
     auto t_one = now();
     m->fill_brain(matrix_dim, matrix_dim, neuron_type, proba_conn, brain_struct, S, rank / GC, rank % GC, GR, GC);
     auto t_two = now();
-    double* s = new double[m->get_ln_col()];
-    double* b1 = new double[m->get_ln_col()];
+    double* s = new double[m->get_ln_row()];
+    double* b1 = new double[m->get_ln_row()];
     double* b2 = new double[1];
-    for(int i = 0; i < m->get_ln_col(); i++) {
+    for(int i = 0; i < m->get_ln_row(); i++) {
       s[i] = 0;
       b1[i] = 0;
     }
@@ -390,7 +420,7 @@ int main(int argc, char** argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
-    std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
+    std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_row() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
