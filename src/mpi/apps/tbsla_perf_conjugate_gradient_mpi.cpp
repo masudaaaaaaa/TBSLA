@@ -298,12 +298,14 @@ int main(int argc, char** argv) {
     for(int i = 0; i < m->get_ln_col(); i++) {
       s[i] = 0;
       b1[i] = 0;
-    } 
+    }
     auto t_three = now();
     std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
+    m->print(std::cout) << std::endl;
+    m->print_as_dense(std::cout) << std::endl;
     std::cout << "Diagonally dominante matrix" << std::endl;
     auto t_four = now();
     std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
@@ -312,6 +314,9 @@ int main(int argc, char** argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     auto t_five = now();
     std::cout << "Normalized matrix" << std::endl;
+    std::cout << "Matrix" << std::endl;
+    m->print(std::cout) << std::endl;
+    m->print_as_dense(std::cout) << std::endl;
     delete[] s;
     delete[] b1;
     delete[] b2;
@@ -382,7 +387,7 @@ int main(int argc, char** argv) {
   std::cout << "Matrix" << std::endl;
   m->print_as_dense(std::cout) << std::endl;
   
-  for(int ir=0; ir<n_runs; ir++) {
+  /*for(int ir=0; ir<n_runs; ir++) {
     int nb_iterations_done;
     std::cout << "Running PageRank - Iteration " << ir << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
@@ -475,7 +480,7 @@ int main(int argc, char** argv) {
       std::cout << ",\"" << it->first << "\":\"" << it->second << "\"";
     }
     std::cout << "}\n";
-  }
+  }*/
 
   MPI_Finalize();
 }

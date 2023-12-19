@@ -1219,7 +1219,7 @@ void tbsla::cpp::MatrixCSR::set_diag(double* s) {
   int nb_val_diag=0;
   #pragma omp parallel for schedule(static) reduction(+:nb_val_diag)
   for (int i = 0; i < this->ln_row; i++) {
-    if(this->colidx[this->rowptr[i]] <=this->f_row+i && this->colidx[this->rowptr[i + 1]]>=this->f_row+i){
+    if(this->f_col<=this->f_row+i&& this->f_col+this->n_col>=this->f_row+i){
         nb_val_diag++;
         for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
             
@@ -1228,36 +1228,37 @@ void tbsla::cpp::MatrixCSR::set_diag(double* s) {
         }
     }
   }
-  double *temp_values=new double[this->rowptr[this->nnz]+nb_val_diag];
-  int *temp_colidx=new int[this->rowptr[this->nnz]+nb_val_diag];
-  int *temp_rowptr=new int[ln_row + 1];
+  this->nnz=this->nnz+nb_val_diag;
+  std::cout<<"nb_val_diag: "<<nb_val_diag<<std::endl;
+  double *temp_values=new double[this->rowptr[this->ln_row]+nb_val_diag]();
+  int *temp_colidx=new int[this->rowptr[this->ln_row]+nb_val_diag]();
+  int *temp_rowptr=new int[ln_row + 1]();
   int decal=0;
   temp_rowptr[0]=this->rowptr[0];
-  #pragma omp parallel for schedule(static)
+  //#pragma omp parallel for schedule(static)
   for (int i = 0; i < this->ln_row; i++) {
     for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
-        if(this->colidx[j]==(this->f_row+i)){
+        if(this->colidx[j]==(this->f_row+i)){ // replace the diagonale
+	    //std::cout<<"c1"<<std::endl;
             temp_values[j+decal] = s[this->colidx[j] - this->f_col];
             temp_colidx[j+decal]=i;
             temp_rowptr[i+1]=this->rowptr[i+1]+decal;
-        }else if(this->colidx[j]<(this->f_row+i)){
-            if(this->colidx[j-1]>(this->f_row+i)){
-                temp_values[j+decal] = s[this->colidx[j] - this->f_col];
-                temp_colidx[j+decal]=i;
-                decal++;
-                temp_values[j+decal] = this->values[j];
-                temp_colidx[j+decal]=this->colidx[j];
-                temp_rowptr[i+1]=this->rowptr[i+1]+decal;
-            }else{
-                temp_values[j+decal] = this->values[j];
-                temp_colidx[j+decal]=this->colidx[j];
-            }
-        }else{
+        }else{// replace the other value
+	    //std::cout<<"c2"<<std::endl;
             temp_values[j+decal] = this->values[j];
             temp_colidx[j+decal]=this->colidx[j];
         }
     }
-    
+    if(temp_rowptr[i+1]==0&&this->f_col<=i&&this->f_col+this->ln_col>=i){
+	std::cout<<"c3.1"<<std::endl;
+    	temp_values[this->rowptr[i+1]-1+decal] = s[this->colidx[this->ln_row] - this->f_col];
+    	temp_colidx[this->rowptr[i+1]-1+decal]=i;
+    	decal++;
+    	temp_rowptr[i+1]=this->rowptr[i+1]+decal;
+    }else if(temp_rowptr[i+1]==0){
+	std::cout<<"c3.2"<<std::endl;
+    	temp_rowptr[i+1]=this->rowptr[i+1]+decal;
+    }
   }
   delete[] this->values;
   delete[] this->colidx;
