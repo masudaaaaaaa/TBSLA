@@ -1054,7 +1054,11 @@ double * tbsla::mpi::Matrix::conjugate_gradient_opticom(int maxIter, double beta
         
         /************ End of iteration Operations ************/
         cpt_iterations++;
-        std::cout << "iteration: "<<cpt_iterations<<", error local: "<<error_vect_local <<", error vect:"<<error_vect<<" alpha: "<< alpha_i<<" rho:"<<new_rho<<" beta: "<< beta<<std::endl;
+        std::cout << "iteration: "<<cpt_iterations<<", error local: ";
+	printf("%f",error_vect_local);
+      	std::cout<<", error vect: ";
+	printf("%f",error_vect);
+	std::cout<<" alpha: "<< alpha_i<<" rho:"<<new_rho<<" beta: "<< beta<<std::endl;
     }
     /****************************************************************************************************/
     /******************************************* CONJUGATE GRADIENT END *******************************************/
