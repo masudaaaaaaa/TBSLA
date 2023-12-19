@@ -512,7 +512,7 @@ void tbsla::cpp::MatrixCSR::fill_cdistrib(int n_row, int n_col, double nnz, int 
   
   int pas  = nnz/n_col;
   std::cout << "nnz = " << this->nnz  << std::endl;
-  incr=0;
+  long int incr=0;
   for(long int i = 0; i < ln_row; i++) {
      for (long int j=i%pas; j<ln_col; j+=pas){
       this->colidx[incr] = j;
