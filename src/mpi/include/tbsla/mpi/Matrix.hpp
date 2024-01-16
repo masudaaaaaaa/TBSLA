@@ -24,7 +24,7 @@ class Matrix : public virtual tbsla::cpp::Matrix {
     virtual std::vector<MPI_Comm> create_comms(MPI_Comm comm, std::unordered_map<int,std::vector<int> > recv_map);
     virtual void redistribute_vector(std::vector<MPI_Comm> comms, double* r, const double* v, double* buffer, double* buffer2, std::unordered_map<int,std::vector<int> > recv_map);
     virtual inline void make_stochastic(MPI_Comm comm, double* s, double* buffer, double* buffer2);
-    virtual inline void make_diagonally_dominant(MPI_Comm comm, double* s, double* buffer, double* buffer2);
+    virtual inline void make_diagonally_dominant(MPI_Comm comm, double* s, double* buffer);
     virtual inline void Ax_(MPI_Comm comm, double* r, const double* v, int vect_incr = 0);
     virtual double* a_axpx_(MPI_Comm comm, const double* v, int vect_incr = 0);
     virtual inline void AAxpAx(MPI_Comm comm, double* r, const double* v, double *buffer, double* buffer2, double *buffer3, int vect_incr = 0);

@@ -28,14 +28,14 @@ class MatrixCSR : public virtual Matrix {
     void fill_cdiag(int n_row, int n_col, int cdiag, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
     void fill_cqmat(int n_row, int n_col, int c, double q, unsigned int seed_mult = 1, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
     void fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult = 1, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
-    void fill_cdistrib(int n_row, int n_col, double nnz, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
+    void fill_cdistrib(int n_row, int n_col, int  nnz, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
     void fill_brain(int n_row, int n_col, int* neuron_type, std::vector<std::vector<double> > proba_conn, std::vector<std::unordered_map<int,std::vector<int> > > brain_struct, unsigned int seed_mult, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
 
 	void get_row_sums(double* buffer);
 	void normalize_rows(double* s);
 	void get_col_sums(double* buffer);
 	void normalize_cols(double* s);
-    void set_diag(double* s);
+    	void set_diag(double* s);
 
   protected:
     double* values;

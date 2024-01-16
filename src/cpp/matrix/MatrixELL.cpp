@@ -872,3 +872,10 @@ void tbsla::cpp::MatrixELL::NUMAinit() {
   this->values = newVal;
   this->columns = newCol;
 }
+
+//TODO : fill_cdistribute ELL
+
+void tbsla::cpp::MatrixELL::fill_cdistrib(int n_row, int n_col, int nnz, int pr, int pc, int NR, int NC) {
+
+}
+

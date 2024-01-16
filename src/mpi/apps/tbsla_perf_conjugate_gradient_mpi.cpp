@@ -68,6 +68,61 @@ int* fix_list(int* list, int n_vals, int nc) {
   return fixed_list;
 }
 
+/*int main(int argc, char** argv) {
+  unsigned int i, j;
+  i = 1337;
+  j = 1337;
+  int n_vals = 20, nc = 100;
+  for(int k=0; k<10; k++)
+    std::cout << (rand_r(&i) % 1000) << " ";
+  std::cout << std::endl;
+  for(int k=0; k<10; k++)
+    std::cout << (rand_r(&j) % 1000) << " ";
+  std::cout << std::endl;
+  i = 1337;
+  if(n_vals > 0) {
+    int* cols = new int[n_vals];
+    bool* is_used = new bool[nc];
+    bool* to_fix = new bool[n_vals];
+    for(int k=0; k<n_vals; k++) {
+      int col_ind = rand_r(&i) % nc;
+      cols[k] = col_ind;
+      if(is_used[col_ind])
+        to_fix[k] = true;
+      is_used[col_ind] = true;
+    }
+    delete[] is_used;
+    for(int k=0; k<n_vals; k++)
+      std::cout << cols[k] << " ";
+    std::cout << std::endl;
+    int* fixed = fix_list(cols, n_vals, nc);
+    for(int k=0; k<n_vals; k++)
+      std::cout << fixed[k] << " ";
+    std::cout << std::endl;
+  }
+  j = 1337;
+  if(n_vals > 0) {
+    int* cols = new int[n_vals];
+    bool* is_used = new bool[nc];
+    bool* to_fix = new bool[n_vals];
+    for(int k=0; k<n_vals; k++) {
+      int col_ind = rand_r(&j) % nc;
+      cols[k] = col_ind;
+      if(is_used[col_ind])
+        to_fix[k] = true;
+      is_used[col_ind] = true;
+    }
+    delete[] is_used;
+    for(int k=0; k<n_vals; k++)
+      std::cout << cols[k] << " ";
+    std::cout << std::endl;
+    int* fixed = fix_list(cols, n_vals, nc);
+    for(int k=0; k<n_vals; k++)
+      std::cout << fixed[k] << " ";
+    std::cout << std::endl;
+  }
+}*/
+
 double compute_median(std::vector<double> _values)
 {
   double median = 0;
@@ -199,11 +254,10 @@ int main(int argc, char** argv) {
   } else if(matrix == "random_stoch") {
     std::string nnz_string = input.get_opt("--NNZ", "0.0001");
     NNZ = std::stod(nnz_string);
-  } 
-  else if(matrix == "cdistrib") {
-    std::string nnz_string = input.get_opt("--NNZ", "0.0001");
+  } else if(matrix == "brain") {
+    std::string nnz_string = input.get_opt("--NNZ", "10");
     NNZ = std::stod(nnz_string);
-  }else if(matrix == "brain") {
+  } else if(matrix == "cdistrib") {
     std::string nnz_string = input.get_opt("--NNZ", "10");
     NNZ = std::stod(nnz_string);
   } else if (matrix == "") {
@@ -237,23 +291,6 @@ int main(int argc, char** argv) {
     auto t_one = now();
     m->fill_cdiag(matrix_dim, matrix_dim, C, rank / GC, rank % GC, GR, GC);
     auto t_two = now();
-    double* s = new double[m->get_ln_row()];
-    double* b1 = new double[m->get_ln_row()];
-    double* b2 = new double[1];
-    for(int i = 0; i < m->get_ln_row(); i++) {
-      s[i] = 0;
-      b1[i] = 0;
-    }
-    auto t_three = now();
-    std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "Diagonally dominante matrix" << std::endl;
-    auto t_four = now();
-    delete[] s;
-    delete[] b1;
-    delete[] b2;
     double* s = new double[m->get_ln_col()];
     double* b1 = new double[m->get_ln_col()];
     double* b2 = new double[1];
@@ -261,39 +298,24 @@ int main(int argc, char** argv) {
       s[i] = 0;
       b1[i] = 0;
     }
+    auto t_three = now();
     std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
-    auto t_five = now();
+    auto t_four = now();
     std::cout << "Normalized matrix" << std::endl;
     delete[] s;
     delete[] b1;
     delete[] b2;
     std::cout << "Matrix generation complete" << std::endl;
     std::cout << "Time random filling = " << std::to_string((t_two-t_one) / 1e9) << std::endl;
-    std::cout << "Time making diagonally dominante = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
-    std::cout << "Time normalization = " << std::to_string((t_five-t_four) / 1e9) << std::endl;
+    std::cout << "Time normalization = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
   } else if(matrix == "cqmat") {
     m->fill_cqmat(matrix_dim, matrix_dim, C, Q, S, rank / GC, rank % GC, GR, GC);
-    double* s = new double[m->get_ln_row()];
-    double* b1 = new double[m->get_ln_row()];
-    double* b2 = new double[1];
-    std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "Diagonally dominante matrix" << std::endl;
-    delete[] s;
-    delete[] b1;
-    delete[] b2;
     double* s = new double[m->get_ln_col()];
     double* b1 = new double[m->get_ln_col()];
     double* b2 = new double[1];
-    for(int i = 0; i < m->get_ln_col(); i++) {
-      s[i] = 0;
-      b1[i] = 0;
-    }
     std::cout << "Normalizing cqmat with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
@@ -305,7 +327,7 @@ int main(int argc, char** argv) {
     std::cout << "Matrix generation complete" << std::endl;
   } else if(matrix == "random_stoch") {
     auto t_one = now();
-    m->fill_random(matrix_dim, matrix_dim, NNZ,  rank / GC, rank % GC, GR, GC);
+    m->fill_random(matrix_dim, matrix_dim, NNZ, S, rank / GC, rank % GC, GR, GC);
     auto t_two = now();
     //double* s = new double[matrix_dim];
     double* s = new double[m->get_ln_row()];
@@ -324,64 +346,36 @@ int main(int argc, char** argv) {
       b1[i] = 0;
     }
     auto t_three = now();
-    std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
-    MPI_Barrier(MPI_COMM_WORLD);
-    m->print(std::cout) << std::endl;
-    m->print_as_dense(std::cout) << std::endl;
-    std::cout << "Diagonally dominante matrix" << std::endl;
-    auto t_four = now();
-    delete[] s;
-    delete[] b1;
-    delete[] b2;
-    double* s = new double[m->get_ln_col()];
-    double* b1 = new double[m->get_ln_col()];
-    double* b2 = new double[1];
-    for(int i = 0; i < m->get_ln_col(); i++) {
-      s[i] = 0;
-      b1[i] = 0;
-    }
     std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
-    auto t_five = now();
+    auto t_four = now();
     std::cout << "Normalized matrix" << std::endl;
-    std::cout << "Matrix" << std::endl;
-    m->print(std::cout) << std::endl;
-    m->print_as_dense(std::cout) << std::endl;
     delete[] s;
     delete[] b1;
     delete[] b2;
     std::cout << "Matrix generation complete" << std::endl;
     std::cout << "Time random filling = " << std::to_string((t_two-t_one) / 1e9) << std::endl;
-    std::cout << "Time making diagonally dominante = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
-    std::cout << "Time normalization = " << std::to_string((t_five-t_four) / 1e9) << std::endl;
+    std::cout << "Time normalization = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
     } else if(matrix == "cdistrib") {
+    std::cout<<"cdistrib"<<std::endl;
     auto t_one = now();
-    m->fill_cdistrib(matrix_dim, matrix_dim, NNZ, S, rank / GC, rank % GC, GR, GC);
+    m->fill_cdistrib(matrix_dim, matrix_dim, NNZ,  rank / GC, rank % GC, GR, GC);
     auto t_two = now();
-    //double* s = new double[matrix_dim];
     double* s = new double[m->get_ln_col()];
     double* b1 = new double[m->get_ln_col()];
-    //double* b2 = new double[m->get_ln_col()];
     double* b2 = new double[1];
-    /*for(int i = 0; i < matrix_dim; i++) {
-      s[i] = 0;
-    }
-    for(int i = 0; i < m->get_ln_col(); i++) {
-      b1[i] = 0;
-      b2[i] = 0;
-    }*/
     for(int i = 0; i < m->get_ln_col(); i++) {
       s[i] = 0;
       b1[i] = 0;
     }
     auto t_three = now();
+    m->print(std::cout) << std::endl;
+    m->print_as_dense(std::cout) << std::endl;
     std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
+    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1);
     MPI_Barrier(MPI_COMM_WORLD);
     m->print(std::cout) << std::endl;
     m->print_as_dense(std::cout) << std::endl;
@@ -406,25 +400,19 @@ int main(int argc, char** argv) {
     auto t_one = now();
     m->fill_brain(matrix_dim, matrix_dim, neuron_type, proba_conn, brain_struct, S, rank / GC, rank % GC, GR, GC);
     auto t_two = now();
-    double* s = new double[m->get_ln_row()];
-    double* b1 = new double[m->get_ln_row()];
+    double* s = new double[m->get_ln_col()];
+    double* b1 = new double[m->get_ln_col()];
     double* b2 = new double[1];
-    for(int i = 0; i < m->get_ln_row(); i++) {
+    for(int i = 0; i < m->get_ln_col(); i++) {
       s[i] = 0;
       b1[i] = 0;
     }
     auto t_three = now();
-    std::cout << "Make diagonally dominante with buffers sizes = " << matrix_dim << " and " << m->get_ln_col() << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    m->make_diagonally_dominant(MPI_COMM_WORLD, s, b1, b2);
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "Diagonally dominante matrix" << std::endl;
-    auto t_four = now();
     std::cout << "Normalizing with buffers sizes = " << matrix_dim << " and " << m->get_ln_row() << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
-    auto t_five = now();
+    auto t_four = now();
     std::cout << "Normalized matrix" << std::endl;
     delete[] s;
     delete[] b1;
@@ -433,7 +421,6 @@ int main(int argc, char** argv) {
     std::cout << "Matrix generation complete" << std::endl;
     std::cout << "Time random filling = " << std::to_string((t_two-t_one) / 1e9) << std::endl;
     std::cout << "Time making diagonally dominante = " << std::to_string((t_four-t_three) / 1e9) << std::endl;
-    std::cout << "Time normalization = " << std::to_string((t_five-t_four) / 1e9) << std::endl;
   } else {
     std::string filepath = matrix_folder + "/" + matrix + "." + format;
     std::ifstream f(filepath);
@@ -457,9 +444,9 @@ int main(int argc, char** argv) {
   std::vector<double> runtimes;
   std::vector<double> gflops;
   std::cout << "Matrix" << std::endl;
-  m->print_as_dense(std::cout) << std::endl;
+  m->print(std::cout) << std::endl;
   
-  /*for(int ir=0; ir<n_runs; ir++) {
+  for(int ir=0; ir<n_runs; ir++) {
     int nb_iterations_done;
     std::cout << "Running PageRank - Iteration " << ir << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
@@ -552,7 +539,7 @@ int main(int argc, char** argv) {
       std::cout << ",\"" << it->first << "\":\"" << it->second << "\"";
     }
     std::cout << "}\n";
-  }*/
+  }
 
   MPI_Finalize();
 }

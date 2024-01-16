@@ -309,6 +309,12 @@ void tbsla::cpp::MatrixDENSE::normalize_rows(double* s) {
   }
 }
 
+//TODO : c_diag for Dense
+void tbsla::cpp::MatrixDENSE::fill_cdistrib(int n_row, int n_col, int nnz, int pr, int pc, int NR, int NC) {
+
+
+}
+
 void tbsla::cpp::MatrixDENSE::get_col_sums(double* s) {
   
 }

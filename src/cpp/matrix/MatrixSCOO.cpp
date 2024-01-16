@@ -776,3 +776,9 @@ void tbsla::cpp::MatrixSCOO::NUMAinit() {
   this->row = newRow;
   this->col = newCol;
 }
+
+//TODO : fill_cdistribute SCOO
+
+void tbsla::cpp::MatrixSCOO::fill_cdistrib(int n_row, int n_col, int nnz, int pr, int pc, int NR, int NC) {
+
+}
