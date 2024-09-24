@@ -1190,12 +1190,12 @@ void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
   //for (int i = this->f_row; i < this->f_row+this->ln_row; i++) {
   for (int i = 0; i < this->ln_row; i++) {
 	double sum = 0;
-	std::cout << "sum[" << i << "] = " << sum << std::endl;
+	//std::cout << "sum[" << i << "] = " << sum << std::endl;
     for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
       sum += std::abs(this->values[j]);
     }
 	s[i/*+this->f_row*/] = sum;
-	std::cout << "sum[" << i << "] = " << sum << std::endl;
+	//std::cout << "sum[" << i << "] = " << sum << std::endl;
   }
 }
 
@@ -1264,7 +1264,6 @@ void tbsla::cpp::MatrixCSR::set_diag(double* s) {
     if(this->f_col<=this->f_row+i&& this->f_col+this->ln_col>this->f_row+i){
         nb_val_diag++;
         for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
-            
             if( this->colidx[j]==(this->f_row+i))
                 nb_val_diag--;
         }
@@ -1292,17 +1291,21 @@ void tbsla::cpp::MatrixCSR::set_diag(double* s) {
             temp_colidx[j+decal]=this->colidx[j];
         }
     }
-    if(temp_rowptr[i+1]==0&&this->f_col<=i&&this->f_col+this->ln_col>=i){
-	std::cout<<"c3.1"<<std::endl;
+    if(temp_rowptr[i+1]==0&&this->f_col<=i+this->f_row&&this->f_col+this->ln_col>i+this->f_row){
+	//std::cout<<"c3.1"<<std::endl;
+	//std::cout<<"i:"<<i<<", f_col:"<<this->f_col<<", ln_col:"<<this->ln_col <<", f_row:"<<this->f_row <<std::endl;
+	//std::cout<< temp_rowptr[i+1]<< "  "<< this->rowptr[i+1]+decal <<std::endl;
     	temp_values[this->rowptr[i+1]-1+decal] = s[this->colidx[this->ln_row] - this->f_col];
     	temp_colidx[this->rowptr[i+1]-1+decal]=i;
+	temp_rowptr[i+1]=this->rowptr[i+1]+decal + 1;
     	decal++;
     	temp_rowptr[i+1]=this->rowptr[i+1]+decal;
     }else if(temp_rowptr[i+1]==0){
-	std::cout<<"c3.2"<<std::endl;
+	//std::cout<<"c3.2"<<std::endl;
     	temp_rowptr[i+1]=this->rowptr[i+1]+decal;
     }
   }
+  std::cout<<"after for"<<std::endl;
   delete[] this->values;
   delete[] this->colidx;
   delete[] this->rowptr;

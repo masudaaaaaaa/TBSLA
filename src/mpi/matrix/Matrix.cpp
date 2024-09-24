@@ -396,12 +396,12 @@ inline void tbsla::mpi::Matrix::make_diagonally_dominant(MPI_Comm comm, double* 
   } else {
     std::cout << "NR > 1 and NC > 1" << std::endl;
     MPI_Comm row_comm;
-    std::cout<<comm<<std::endl;
+    /*std::cout<<comm<<std::endl;
     std::cout<<"[";
     for(int i=0;i<this->ln_row;i++){
     	printf("%f, ",buffer[i]);
     }
-    std::cout<<"]"<<std::endl;
+    std::cout<<"]"<<std::endl;*/
     MPI_Comm_split(comm, this->pr, this->pc, &row_comm);
     std::cout << "Allreduce" << std::endl;
     MPI_Allreduce(buffer, s, this->ln_row, MPI_DOUBLE, MPI_SUM, row_comm);
