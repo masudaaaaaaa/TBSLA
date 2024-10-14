@@ -1,5 +1,6 @@
 #include <tbsla/cpp/MatrixCOO.hpp>
 #include <tbsla/cpp/MatrixCSR.hpp>
+#include <vector>
 #include <iostream>
 
 int main(int argc, char** argv) {
@@ -10,7 +11,7 @@ int main(int argc, char** argv) {
 
   std::vector<double> x{ 1, 2, 3, 4, 5 };
 
-  tbsla::cpp::MatrixCOO m(7, 7, values, row, col);
+  tbsla::cpp::MatrixCOO m(7, 7, values.data(), row.data(), col.data());
   std::cout << m << std::endl;
 
   tbsla::cpp::MatrixCSR m2(m);

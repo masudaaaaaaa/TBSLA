@@ -2,20 +2,19 @@ import argparse
 
 def init_parser():
   parser = argparse.ArgumentParser(add_help=False)
-  parser.add_argument("--op", dest="op", help="Operation", type=str, required=True, choices=['spmv', 'a_axpx', 'spmv_no_redist'])
+  parser.add_argument("--op", dest="op", help="Operation", type=str, required=True, choices=['spmv', 'a_axpx', 'spmv_no_redist', 'Ax', 'Ax_', 'AAxpAx', 'AAxpAxpx'])
   parser.add_argument("--format", dest="format", help="Matrix format", type=str, required=True)
   parser.add_argument("--matrixtype", dest="matrixtype", help="Matrix used as input", type=str, required=True)
   parser.add_argument("--matrixfolder", dest="matrixfolder", help="Folder containing the matrices", type=str, default=".")
+  parser.add_argument("--numa-init", dest="numainit", help="Call NUMAinit function that perform first touch memory allocation", action='store_const', default='False', const='True')
   return parser
 
 def init_pagerank():
   parser = argparse.ArgumentParser(add_help=False)
-  parser.add_argument("--matrix_dim", dest="matrix_dim", help="Number of rows and columns in the matrix", type=int, required=True)
-  parser.add_argument("--GC", dest="GC", help="Number of columns in the process grid", type=int, required=True)
-  parser.add_argument("--GR", dest="GR", help="Number of rows in the process grid", type=int, required=True)
-  parser.add_argument("--C", dest="C", help="Number of diagonals", type=int, default=10)
   parser.add_argument("--format", dest="format", help="Matrix format", type=str, required=True)
-  parser.add_argument("--personalized_nodes", dest="personalized_nodes", help="List of personalized nodes in double quotes and separated by spaces", type=str, required=False, default="")
+  parser.add_argument("--matrixtype", dest="matrixtype", help="Matrix used as input", type=str, required=True)
+  parser.add_argument("--matrixfolder", dest="matrixfolder", help="Folder containing the matrices", type=str, default=".")
+  parser.add_argument("--numa-init", dest="numainit", help="Call NUMAinit function that perform first touch memory allocation", action='store_const', default='False', const='True')
   return parser
 
 def init_mpiomp():

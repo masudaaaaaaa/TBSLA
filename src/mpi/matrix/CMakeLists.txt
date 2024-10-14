@@ -4,6 +4,7 @@ list(APPEND SRC_LIST MatrixSCOO.cpp)
 list(APPEND SRC_LIST MatrixELL.cpp)
 list(APPEND SRC_LIST MatrixDENSE.cpp)
 list(APPEND SRC_LIST Matrix.cpp)
+list(APPEND SRC_LIST CG.cpp)
 
 message("list SRCLISMPI ${SRC_LIST}")
 

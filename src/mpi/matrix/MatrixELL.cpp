@@ -4,6 +4,8 @@
 #include <vector>
 #include <mpi.h>
 
+#define TBSLA_MATRIX_ELL_READLINES 2048
+
 int tbsla::mpi::MatrixELL::read_bin_mpiio(MPI_Comm comm, std::string filename, int pr, int pc, int NR, int NC) {
   int world, rank;
   MPI_Comm_size(comm, &world);
@@ -41,83 +43,43 @@ int tbsla::mpi::MatrixELL::read_bin_mpiio(MPI_Comm comm, std::string filename, i
   depla_general += sizeof(size_t);
   columns_start = depla_general;
 
-  this->values.reserve(this->ln_row * this->max_col);
-  this->columns.reserve(this->ln_row * this->max_col);
-  int idx;
+  if(this->values)
+    delete[] this->values;
+  if(this->columns)
+    delete[] this->columns;
+  this->values = new double[this->ln_row * this->max_col];
+  this->columns = new int[this->ln_row * this->max_col];
 
-  std::vector<int> ctmp(this->max_col);
-  std::vector<double> vtmp(this->max_col);
-  for(int i = 0; i < this->ln_row; i++) {
-    MPI_File_read_at(fh, columns_start + (this->f_row + i) * this->max_col * sizeof(int), ctmp.data(), this->max_col, MPI_INT, &status);
-    MPI_File_read_at(fh, values_start + (this->f_row + i) * this->max_col * sizeof(double), vtmp.data(), this->max_col, MPI_DOUBLE, &status);
-    int incr = 0;
-    for(int j = 0; j < this->max_col; j++) {
-      idx = ctmp[j];
-      if(idx >= this->f_col && idx < this->f_col + this->ln_col) {
-        this->columns.push_back(idx);
-        this->values.push_back(vtmp[j]);
-        incr++;
-      }
-    }
-    this->nnz += incr;
-    for(int j = incr; j < this->max_col; j++) {
-      this->columns.push_back(0);
-      this->values.push_back(0);
-    }
+  int mod = this->ln_row % TBSLA_MATRIX_ELL_READLINES;
+  tbsla::mpi::MatrixELL::mpiio_read_lines(fh, 0, mod, columns_start, values_start);
+  for(int i = mod; i < this->ln_row; i += TBSLA_MATRIX_ELL_READLINES) {
+    tbsla::mpi::MatrixELL::mpiio_read_lines(fh, i, TBSLA_MATRIX_ELL_READLINES, columns_start, values_start);
   }
 
   MPI_File_close(&fh);
   return 0;
 }
 
-std::vector<double> tbsla::mpi::MatrixELL::spmv(MPI_Comm comm, const std::vector<double> &v, int vect_incr) {
-  std::vector<double> send = this->spmv(v, vect_incr);
-  if(this->NC == 1 && this->NR == 1) {
-    return send;
-  } else if(this->NC == 1 && this->NR > 1) {
-    std::vector<int> recvcounts(this->NR);
-    std::vector<int> displs(this->NR, 0);
-    for(int i = 0; i < this->NR; i++) {
-      recvcounts[i] = tbsla::utils::range::lnv(this->get_n_row(), i, this->NR);
+void tbsla::mpi::MatrixELL::mpiio_read_lines(MPI_File &fh, int s, int n, int columns_start, int values_start) {
+  MPI_Status status;
+  std::vector<int> ctmp(n * this->max_col);
+  std::vector<double> vtmp(n * this->max_col);
+  MPI_File_read_at(fh, columns_start + (this->f_row + s) * this->max_col * sizeof(int), ctmp.data(), n * this->max_col, MPI_INT, &status);
+  MPI_File_read_at(fh, values_start + (this->f_row + s) * this->max_col * sizeof(double), vtmp.data(), n * this->max_col, MPI_DOUBLE, &status);
+  for(int i = 0; i < n; i++) {
+    int incr = 0;
+    for(int j = 0; j < this->max_col; j++) {
+      int idx = ctmp[i * this->max_col + j];
+      if(idx >= this->f_col && idx < this->f_col + this->ln_col) {
+        this->columns[(i + s) * this->max_col + incr] = idx;
+        this->values[(i + s) * this->max_col + incr] = vtmp[i * this->max_col + j];
+        incr++;
+      }
     }
-    for(int i = 1; i < this->NR; i++) {
-      displs[i] = displs[i - 1] + recvcounts[i - 1];
+    this->nnz += incr;
+    for(int j = incr; j < this->max_col; j++) {
+      this->columns[(i + s) * this->max_col + j] = 0;
+      this->values[(i + s) * this->max_col + j] = 0;
     }
-    std::vector<double> recv(this->get_n_row());
-    MPI_Allgatherv(send.data(), send.size(), MPI_DOUBLE, recv.data(), recvcounts.data(), displs.data(), MPI_DOUBLE, comm);
-    return recv;
-  } else if(this->NC > 1 && this->NR == 1) {
-    std::vector<double> recv(this->get_n_row());
-    MPI_Allreduce(send.data(), recv.data(), send.size(), MPI_DOUBLE, MPI_SUM, comm);
-    return recv;
-  } else {
-    MPI_Comm row_comm;
-    MPI_Comm_split(comm, this->pr, this->pc, &row_comm);
-    std::vector<double> recv(send.size());
-    MPI_Allreduce(send.data(), recv.data(), send.size(), MPI_DOUBLE, MPI_SUM, row_comm);
-
-    std::vector<double> recv2(this->get_n_row());
-    std::vector<int> recvcounts(this->NR);
-    std::vector<int> displs(this->NR, 0);
-    for(int i = 0; i < this->NR; i++) {
-      recvcounts[i] = tbsla::utils::range::lnv(this->get_n_row(), i, this->NR);
-    }
-    for(int i = 1; i < this->NR; i++) {
-      displs[i] = displs[i - 1] + recvcounts[i - 1];
-    }
-    MPI_Comm col_comm;
-    MPI_Comm_split(comm, this->pc, this->pr, &col_comm);
-    MPI_Allgatherv(recv.data(), recv.size(), MPI_DOUBLE, recv2.data(), recvcounts.data(), displs.data(), MPI_DOUBLE, col_comm);
-    MPI_Comm_free(&col_comm);
-    MPI_Comm_free(&row_comm);
-    return recv2;
   }
-}
-
-std::vector<double> tbsla::mpi::MatrixELL::a_axpx_(MPI_Comm comm, const std::vector<double> &v, int vect_incr) {
-  std::vector<double> vs(v.begin() + this->f_col, v.begin() + this->f_col + this->ln_col);
-  std::vector<double> r = this->spmv(comm, vs, vect_incr);
-  std::transform (r.begin(), r.end(), v.begin(), r.begin(), std::plus<double>());
-  std::vector<double> l(r.begin() + this->f_col, r.begin() + this->f_col + this->ln_col);
-  return this->spmv(comm, l, vect_incr);
 }

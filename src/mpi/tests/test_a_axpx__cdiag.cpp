@@ -5,7 +5,7 @@
 #include <tbsla/mpi/MatrixELL.hpp>
 #include <tbsla/mpi/MatrixDENSE.hpp>
 
-#include <tbsla/cpp/utils/vector.hpp>
+#include <tbsla/cpp/utils/array.hpp>
 
 #include <mpi.h>
 
@@ -19,10 +19,10 @@ void test_matrix(tbsla::mpi::Matrix & m, int nr, int nc, int cdiag, int pr, int 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   m.fill_cdiag(nr, nc, cdiag, pr, pc, NR, NC);
 
-  std::vector<double> v(nc);
-  std::iota (std::begin(v), std::end(v), 0);
-  std::vector<double> r = m.a_axpx_(MPI_COMM_WORLD, v);
-  int res = tbsla::utils::vector::test_a_axpx__cdiag(nr, nc, cdiag, v, r, false);
+  double* v = new double[nc];
+  std::iota (v, v + nc, 0);
+  double* r = m.a_axpx_(MPI_COMM_WORLD, v);
+  int res = tbsla::utils::array::test_a_axpx__cdiag(nr, nc, cdiag, v, r, false);
   int res0;
   MPI_Allreduce(&res, &res0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if(rank == 0) {
@@ -30,14 +30,13 @@ void test_matrix(tbsla::mpi::Matrix & m, int nr, int nc, int cdiag, int pr, int 
   }
   if(res0) {
     int res;
-    std::vector<double> r = m.a_axpx_(MPI_COMM_WORLD, v);
+    double* r = m.a_axpx_(MPI_COMM_WORLD, v);
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
-        m.print_infos(std::cout);
         std::cout << m << std::endl;
-        res = tbsla::utils::vector::test_a_axpx__cdiag(nr, nc, cdiag, v, r, true);
-        tbsla::utils::vector::streamvector<double>(std::cout, "r ", r);
+        res = tbsla::utils::array::test_a_axpx__cdiag(nr, nc, cdiag, v, r, true);
+        tbsla::utils::array::stream<double>(std::cout, "r ", r, nr);
         std::cout << std::endl;
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -45,7 +44,6 @@ void test_matrix(tbsla::mpi::Matrix & m, int nr, int nc, int cdiag, int pr, int 
     if(rank == 0) {
       tbsla::cpp::MatrixCOO ml;
       ml.fill_cdiag(nr, nc, cdiag);
-      ml.print_infos(std::cout);
       exit(res);
     }
   }

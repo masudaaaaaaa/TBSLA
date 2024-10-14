@@ -9,8 +9,6 @@ int main(int argc, char** argv) {
     tbsla::cpp::MatrixCOO m;
     m.readMM(std::string(argv[1]));
     std::ofstream os(std::string(argv[2]), std::ofstream::binary);
-    m.print_stats(std::cout);
-    m.print_infos(std::cout);
     m.write(os);
     os.close();
 
@@ -19,7 +17,5 @@ int main(int argc, char** argv) {
     tbsla::cpp::MatrixCOO m2;
     m2.read(is);
     is.close();
-    m2.print_stats(std::cout);
-    m2.print_infos(std::cout);
   }
 }

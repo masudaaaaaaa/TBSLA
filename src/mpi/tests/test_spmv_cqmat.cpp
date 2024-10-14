@@ -5,7 +5,7 @@
 #include <tbsla/mpi/MatrixELL.hpp>
 #include <tbsla/mpi/MatrixDENSE.hpp>
 
-#include <tbsla/cpp/utils/vector.hpp>
+#include <tbsla/cpp/utils/array.hpp>
 
 #include <mpi.h>
 
@@ -17,19 +17,19 @@ void test_cqmat(int nr, int nc, int c, double q, unsigned int seed, int pr, int 
   MPI_Comm_size(MPI_COMM_WORLD, &world);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  std::vector<double> v(nc);
-  std::iota (std::begin(v), std::end(v), 0);
+  double* v = new double[nc];
+  std::iota (v, v + nc, 0);
 
   tbsla::mpi::MatrixCOO mcoo;
   mcoo.fill_cqmat(nr, nc, c, q, seed, pr, pc, NR, NC);
-  std::vector<double> rcoo = mcoo.spmv(MPI_COMM_WORLD, v);
+  double* rcoo = mcoo.spmv(MPI_COMM_WORLD, v);
 
   tbsla::mpi::MatrixSCOO mscoo;
   mscoo.fill_cqmat(nr, nc, c, q, seed, pr, pc, NR, NC);
-  std::vector<double> vl(mscoo.get_ln_col());
-  std::iota (std::begin(vl), std::end(vl), mscoo.get_f_col());
-  std::vector<double> rscoo = mscoo.spmv(MPI_COMM_WORLD, vl);
-  if(rscoo != rcoo) {
+  double* vl = new double[mscoo.get_ln_col()];
+  std::iota (vl, vl + mscoo.get_ln_col(), mscoo.get_f_col());
+  double* rscoo = mscoo.spmv(MPI_COMM_WORLD, vl);
+  if(tbsla::utils::array::compare_arrays(rscoo, rcoo, nr)) {
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
@@ -39,22 +39,22 @@ void test_cqmat(int nr, int nc, int c, double q, unsigned int seed, int pr, int 
       MPI_Barrier(MPI_COMM_WORLD);
     }
     if(rank == 0) {
-      tbsla::utils::vector::streamvector<double>(std::cout, "v ", v);
+      tbsla::utils::array::stream<double>(std::cout, "v ", v, nc);
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+      tbsla::utils::array::stream<double>(std::cout, "vl ", vl, mscoo.get_ln_col());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rcoo ", rcoo);
+      tbsla::utils::array::stream<double>(std::cout, "rcoo ", rcoo, mscoo.get_n_row());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rscoo ", rscoo);
+      tbsla::utils::array::stream<double>(std::cout, "rscoo ", rscoo, mscoo.get_n_row());
       std::cout << std::endl;
-      exit(1);
     }
+    exit(1);
   }
 
   tbsla::mpi::MatrixCSR mcsr;
   mcsr.fill_cqmat(nr, nc, c, q, seed, pr, pc, NR, NC);
-  std::vector<double> rcsr = mcsr.spmv(MPI_COMM_WORLD, vl);
-  if(rcsr != rcoo) {
+  double* rcsr = mcsr.spmv(MPI_COMM_WORLD, vl);
+  if(tbsla::utils::array::compare_arrays(rcsr, rcoo, nr)) {
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
@@ -64,22 +64,22 @@ void test_cqmat(int nr, int nc, int c, double q, unsigned int seed, int pr, int 
       MPI_Barrier(MPI_COMM_WORLD);
     }
     if(rank == 0) {
-      tbsla::utils::vector::streamvector<double>(std::cout, "v ", v);
+      tbsla::utils::array::stream<double>(std::cout, "v ", v, nc);
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+      tbsla::utils::array::stream<double>(std::cout, "vl ", vl, mscoo.get_ln_col());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rcoo ", rcoo);
+      tbsla::utils::array::stream<double>(std::cout, "rcoo ", rcoo, mscoo.get_n_row());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rcsr ", rcsr);
+      tbsla::utils::array::stream<double>(std::cout, "rcsr ", rcsr, mscoo.get_n_row());
       std::cout << std::endl;
-      exit(1);
     }
+    exit(1);
   }
 
   tbsla::mpi::MatrixELL mell;
   mell.fill_cqmat(nr, nc, c, q, seed, pr, pc, NR, NC);
-  std::vector<double> rell = mell.spmv(MPI_COMM_WORLD, vl);
-  if(rell != rcoo) {
+  double* rell = mell.spmv(MPI_COMM_WORLD, vl);
+  if(tbsla::utils::array::compare_arrays(rell, rcoo, nr)) {
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
@@ -89,22 +89,22 @@ void test_cqmat(int nr, int nc, int c, double q, unsigned int seed, int pr, int 
       MPI_Barrier(MPI_COMM_WORLD);
     }
     if(rank == 0) {
-      tbsla::utils::vector::streamvector<double>(std::cout, "v ", v);
+      tbsla::utils::array::stream<double>(std::cout, "v ", v, nc);
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+      tbsla::utils::array::stream<double>(std::cout, "vl ", vl, mscoo.get_ln_col());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rcoo ", rcoo);
+      tbsla::utils::array::stream<double>(std::cout, "rcoo ", rcoo, mscoo.get_n_row());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rell ", rell);
+      tbsla::utils::array::stream<double>(std::cout, "rell ", rell, mscoo.get_n_row());
       std::cout << std::endl;
-      exit(1);
     }
+    exit(1);
   }
 
   tbsla::mpi::MatrixDENSE mdense;
   mdense.fill_cqmat(nr, nc, c, q, seed, pr, pc, NR, NC);
-  std::vector<double> rdense = mdense.spmv(MPI_COMM_WORLD, vl);
-  if(rdense != rcoo) {
+  double* rdense = mdense.spmv(MPI_COMM_WORLD, vl);
+  if(tbsla::utils::array::compare_arrays(rdense, rcoo, nr)) {
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
@@ -114,16 +114,16 @@ void test_cqmat(int nr, int nc, int c, double q, unsigned int seed, int pr, int 
       MPI_Barrier(MPI_COMM_WORLD);
     }
     if(rank == 0) {
-      tbsla::utils::vector::streamvector<double>(std::cout, "v ", v);
+      tbsla::utils::array::stream<double>(std::cout, "v ", v, nc);
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+      tbsla::utils::array::stream<double>(std::cout, "vl ", vl, mscoo.get_ln_col());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rcoo ", rcoo);
+      tbsla::utils::array::stream<double>(std::cout, "rcoo ", rcoo, mscoo.get_n_row());
       std::cout << std::endl;
-      tbsla::utils::vector::streamvector<double>(std::cout, "rdense ", rdense);
+      tbsla::utils::array::stream<double>(std::cout, "rdense ", rdense, mscoo.get_n_row());
       std::cout << std::endl;
-      exit(1);
     }
+    exit(1);
   }
 }
 

@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     }
     exit(1);
   }
-  if(op != "spmv" && op != "a_axpx" && op != "spmv_no_redist") {
+  if(op != "spmv" && op != "a_axpx" && op != "spmv_no_redist" && op != "Ax" && op != "Ax_" && op != "AAxpAx" && op != "AAxpAxpx") {
     if(rank == 0) {
       std::cerr << "OP : " << op << " unrecognized!" << std::endl;
     }
@@ -123,29 +123,82 @@ int main(int argc, char** argv) {
     f.close();
   }
 
-  if(input.has_opt("--print-infos")) {
-    m->print_stats(std::cout);
-    m->print_infos(std::cout);
+  if(input.has_opt("--numa-init")) {
+    m->NUMAinit();
   }
 
   std::random_device rnd_device;
   std::mt19937 mersenne_engine {rnd_device()};  // Generates random integers
   std::uniform_real_distribution<double> dist {-1, 1};
   auto gen = [&dist, &mersenne_engine](){ return dist(mersenne_engine); };
-  std::vector<double> vec(m->get_n_col());
-  std::generate(begin(vec), end(vec), gen);
+  double* vec = new double[m->get_n_col()];
+  std::generate(vec, vec + m->get_n_col(), gen);
 
   MPI_Barrier(MPI_COMM_WORLD);
-  auto t_op_start = now();
+  std::uint64_t t_op = 0;
   if(op == "spmv") {
-    std::vector<double> res = m->spmv(MPI_COMM_WORLD, vec);
+    auto t_op_start = now();
+    MPI_Barrier(MPI_COMM_WORLD);
+    double* res = m->spmv(MPI_COMM_WORLD, vec);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_op_end = now();
+    t_op = t_op_end - t_op_start;
   } else if(op == "spmv_no_redist") {
-    std::vector<double> res = m->spmv_no_redist(MPI_COMM_WORLD, vec);
+    auto t_op_start = now();
+    MPI_Barrier(MPI_COMM_WORLD);
+    double* res = m->spmv_no_redist(MPI_COMM_WORLD, vec);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_op_end = now();
+    t_op = t_op_end - t_op_start;
+  } else if(op == "Ax") {
+    double* res = new double[m->get_n_row()]();
+    double* buffer = new double[m->get_ln_row()]();
+    double* buffer2 = new double[m->get_ln_row()]();
+    auto t_op_start = now();
+    MPI_Barrier(MPI_COMM_WORLD);
+    m->Ax(MPI_COMM_WORLD, res, vec, buffer, buffer2);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_op_end = now();
+    t_op = t_op_end - t_op_start;
+  } else if(op == "AAxpAx") {
+    double* res = new double[m->get_n_row()]();
+    double* buffer = new double[m->get_ln_row()]();
+    double* buffer2 = new double[m->get_ln_row()]();
+    double* buffer3 = new double[m->get_n_row()]();
+    auto t_op_start = now();
+    MPI_Barrier(MPI_COMM_WORLD);
+    m->AAxpAx(MPI_COMM_WORLD, res, vec, buffer, buffer2, buffer3);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_op_end = now();
+    t_op = t_op_end - t_op_start;
+  } else if(op == "AAxpAxpx") {
+    double* res = new double[m->get_n_row()]();
+    double* buffer = new double[m->get_ln_row()]();
+    double* buffer2 = new double[m->get_ln_row()]();
+    double* buffer3 = new double[m->get_n_row()]();
+    auto t_op_start = now();
+    MPI_Barrier(MPI_COMM_WORLD);
+    m->AAxpAxpx(MPI_COMM_WORLD, res, vec, buffer, buffer2, buffer3);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_op_end = now();
+    t_op = t_op_end - t_op_start;
+  } else if(op == "Ax_") {
+    double* res = new double[m->get_ln_row()]();
+    auto t_op_start = now();
+    MPI_Barrier(MPI_COMM_WORLD);
+    m->Ax_(MPI_COMM_WORLD, res, vec);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_op_end = now();
+    t_op = t_op_end - t_op_start;
   } else if(op == "a_axpx") {
-    std::vector<double> res = m->a_axpx_(MPI_COMM_WORLD, vec);
+    auto t_op_start = now();
+    MPI_Barrier(MPI_COMM_WORLD);
+    double* res = m->a_axpx_(MPI_COMM_WORLD, vec);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_op_end = now();
+    t_op = t_op_end - t_op_start;
   }
   MPI_Barrier(MPI_COMM_WORLD);
-  auto t_op_end = now();
 
   long int sum_nnz = m->compute_sum_nnz(MPI_COMM_WORLD);
   long int min_nnz = m->compute_min_nnz(MPI_COMM_WORLD);
@@ -166,12 +219,14 @@ int main(int argc, char** argv) {
     outmap["nnz_min"] = std::to_string(min_nnz);
     outmap["nnz_max"] = std::to_string(max_nnz);
     outmap["time_app_in"] = std::to_string((t_app_end - t_app_start) / 1e9);
-    outmap["time_op"] = std::to_string((t_op_end - t_op_start) / 1e9);
+    outmap["time_op"] = std::to_string(t_op / 1e9);
     outmap["processes"] = std::to_string(world);
-    if(op == "spmv" or op == "spmv_no_redist") {
-      outmap["gflops"] = std::to_string(2.0 * m->get_nnz() / (t_op_end - t_op_start));
-    } else if(op == "a_axpx") {
-      outmap["gflops"] = std::to_string(4.0 * m->get_nnz() / (t_op_end - t_op_start));
+    if(op == "spmv" or op == "spmv_no_redist" or op == "Ax" or op == "Ax_") {
+      outmap["gflops"] = std::to_string(2.0 * m->get_nnz() / t_op);
+    } else if(op == "a_axpx" or op == "AAxpAx") {
+      outmap["gflops"] = std::to_string(4.0 * m->get_nnz() / t_op);
+    } else if(op == "AAxpAxpx") {
+      outmap["gflops"] = std::to_string((4.0 * m->get_nnz() + m->get_n_col()) / t_op);
     }
 #if TBSLA_COMPILED_WITH_OMP
     outmap["lang"] = "MPIOMP";
@@ -193,12 +248,18 @@ int main(int argc, char** argv) {
 #if TBSLA_COMPILED_WITH_OMP
     outmap["compile_options"] += " " + std::string(OpenMP_CXX_FLAGS);
 #endif
+    outmap["vectorization"] = m->get_vectorization();
     if(matrix == "cdiag") {
       outmap["cdiag_c"] = std::to_string(C);
     } else if(matrix == "cqmat") {
       outmap["cqmat_c"] = std::to_string(C);
       outmap["cqmat_q"] = std::to_string(Q);
       outmap["cqmat_s"] = std::to_string(S);
+    }
+    if(input.has_opt("--numa-init")) {
+      outmap["numa_init"] = "true";
+    } else {
+      outmap["numa_init"] = "false";
     }
 
     std::map<std::string, std::string>::iterator it=outmap.begin();

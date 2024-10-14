@@ -150,6 +150,8 @@ if args.lang == "YML":
     fname += ".sh"
     sub.gen_submit_cmd(machine, args, fname, header)
 
+if args.numainit == "True":
+  command += " --numa-init"
 if args.lang != "YML" and args.lang != "OMP":
   command += f" --GR {args.GR}"
   command += f" --GC {args.GC}"
@@ -166,13 +168,21 @@ if args.lang != "YML":
     command += f" --C {args.C}"
 
   if args.matrixtype == "cqmat":
+    incr = 1
     for s in range(1, 2):
       for q in QLIST:
         dict_to_pass["Q"] = q
         dict_to_pass["S"] = s
-        header += command + f' --Q {q} --S {s}" --dic "{dict_to_pass}"\n\n'
+        header += command + f' --Q {q} --S {s}" --dic "{dict_to_pass}"'
+        if hasattr(machine, 'OUT_DICT_FILE_CASES') and args.lang in machine.OUT_DICT_FILE_CASES and hasattr(machine, 'OUT_DICT_FILE') and machine.OUT_DICT_FILE != None:
+          header += f' --infile ' + machine.OUT_DICT_FILE + f'.{incr}.0'
+        header += '\n\n'
+        incr += 1
   else:
-    header += command +  f'" --dic "{dict_to_pass}"\n\n'
+    header += command +  f'" --dic "{dict_to_pass}"'
+    if hasattr(machine, 'OUT_DICT_FILE_CASES') and args.lang in machine.OUT_DICT_FILE_CASES and hasattr(machine, 'OUT_DICT_FILE') and machine.OUT_DICT_FILE != None:
+      header += f' --infile ' + machine.OUT_DICT_FILE + '.1.0'
+    header += '\n\n'
 
   header += machine.post_processing(args) + "\n"
   fname = f"submit_{args.op}_{args.lang}_n{args.nodes}_{args.matrixtype}_{args.format}"

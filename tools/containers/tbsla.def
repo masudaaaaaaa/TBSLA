@@ -1,0 +1,17 @@
+Bootstrap: localimage
+From: ./tbsla_env.sif
+
+%files
+  ./src /TBSLA/src
+  ./tools /TBSLA/tools
+  ./.git /TBSLA/.git
+
+%post
+  cd /TBSLA/src
+  rm -rf _build
+  mkdir -p _build
+  cd _build
+  cmake -DCMAKE_BUILD_TYPE=Release -DTBSLA_ENABLE_OMP=ON -DTBSLA_ENABLE_MPI=ON -DCMAKE_CXX_COMPILER=g++ -DCMAKE_INSTALL_PREFIX:PATH=/usr/local ..
+  make -j 8
+  make install
+

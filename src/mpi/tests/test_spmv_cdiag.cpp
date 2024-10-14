@@ -5,7 +5,7 @@
 #include <tbsla/mpi/MatrixELL.hpp>
 #include <tbsla/mpi/MatrixDENSE.hpp>
 
-#include <tbsla/cpp/utils/vector.hpp>
+#include <tbsla/cpp/utils/array.hpp>
 
 #include <mpi.h>
 
@@ -18,12 +18,13 @@ void test_matrix_split_vector(tbsla::mpi::Matrix & m, int nr, int nc, int cdiag,
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   m.fill_cdiag(nr, nc, cdiag, pr, pc, NR, NC);
 
-  std::vector<double> v(nc);
-  std::iota (std::begin(v), std::end(v), 0);
-  std::vector<double> vl(m.get_ln_col());
-  std::iota (std::begin(vl), std::end(vl), m.get_f_col());
-  std::vector<double> r = m.spmv(MPI_COMM_WORLD, vl);
-  int res = tbsla::utils::vector::test_spmv_cdiag(nr, nc, cdiag, v, r, false);
+  double* v = new double[nc];
+  std::iota (v, v + nc, 0);
+  double* vl = new double[m.get_ln_col()];
+  std::iota (vl, vl + m.get_ln_col(), m.get_f_col());
+  double* r = m.spmv(MPI_COMM_WORLD, vl);
+  int res = tbsla::utils::array::test_spmv_cdiag(nr, nc, cdiag, v, r, false);
+  delete[] r;
   int res0;
   MPI_Allreduce(&res, &res0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if(rank == 0) {
@@ -31,27 +32,28 @@ void test_matrix_split_vector(tbsla::mpi::Matrix & m, int nr, int nc, int cdiag,
   }
   if(res0) {
     int res;
-    tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+    tbsla::utils::array::stream<double>(std::cout, "vl ", vl, m.get_ln_col());
     std::cout << std::endl;
-    std::vector<double> r = m.spmv(MPI_COMM_WORLD, vl);
+    double* r = m.spmv(MPI_COMM_WORLD, vl);
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
-        m.print_infos(std::cout);
         std::cout << m << std::endl;
-        res = tbsla::utils::vector::test_spmv_cdiag(nr, nc, cdiag, v, r, true);
-        tbsla::utils::vector::streamvector<double>(std::cout, "r ", r);
+        res = tbsla::utils::array::test_spmv_cdiag(nr, nc, cdiag, v, r, true);
+        tbsla::utils::array::stream<double>(std::cout, "r ", r, nr);
         std::cout << std::endl;
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
+    delete[] r;
     if(rank == 0) {
       tbsla::cpp::MatrixCOO ml;
       ml.fill_cdiag(nr, nc, cdiag);
-      ml.print_infos(std::cout);
-      exit(res);
     }
+    exit(res);
   }
+  delete[] v;
+  delete[] vl;
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
@@ -62,10 +64,11 @@ void test_matrix(tbsla::mpi::Matrix & m, int nr, int nc, int cdiag, int pr, int 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   m.fill_cdiag(nr, nc, cdiag, pr, pc, NR, NC);
 
-  std::vector<double> v(nc);
-  std::iota (std::begin(v), std::end(v), 0);
-  std::vector<double> r = m.spmv(MPI_COMM_WORLD, v);
-  int res = tbsla::utils::vector::test_spmv_cdiag(nr, nc, cdiag, v, r, false);
+  double* v = new double[nc];
+  std::iota (v, v + nc, 0);
+  double* r = m.spmv(MPI_COMM_WORLD, v);
+  int res = tbsla::utils::array::test_spmv_cdiag(nr, nc, cdiag, v, r, false);
+  delete[] r;
   int res0;
   MPI_Allreduce(&res, &res0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if(rank == 0) {
@@ -73,25 +76,25 @@ void test_matrix(tbsla::mpi::Matrix & m, int nr, int nc, int cdiag, int pr, int 
   }
   if(res0) {
     int res;
-    std::vector<double> r = m.spmv(MPI_COMM_WORLD, v);
+    double* r = m.spmv(MPI_COMM_WORLD, v);
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
-        m.print_infos(std::cout);
         std::cout << m << std::endl;
-        res = tbsla::utils::vector::test_spmv_cdiag(nr, nc, cdiag, v, r, true);
-        tbsla::utils::vector::streamvector<double>(std::cout, "r ", r);
+        res = tbsla::utils::array::test_spmv_cdiag(nr, nc, cdiag, v, r, true);
+        tbsla::utils::array::stream<double>(std::cout, "r ", r, nr);
         std::cout << std::endl;
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
+    delete[] r;
     if(rank == 0) {
       tbsla::cpp::MatrixCOO ml;
       ml.fill_cdiag(nr, nc, cdiag);
-      ml.print_infos(std::cout);
-      exit(res);
     }
+    exit(res);
   }
+  delete[] v;
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
@@ -162,31 +165,39 @@ void test_cdiag(int nr, int nc, int cdiag) {
 
 int main(int argc, char** argv) {
 
+  int rank;
   MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   int t = 0;
   for(int i = 0; i <= 12; i++) {
-    std::cout << "=== test " << t++ << " ===" << std::endl;
+    if(rank == 0)
+      std::cout << "=== test " << t++ << " ===" << std::endl;
     test_cdiag(10, 10, i);
   }
   for(int i = 0; i <= 12; i++) {
-    std::cout << "=== test " << t++ << " ===" << std::endl;
+    if(rank == 0)
+      std::cout << "=== test " << t++ << " ===" << std::endl;
     test_cdiag(5, 10, i);
   }
   for(int i = 0; i <= 12; i++) {
-    std::cout << "=== test " << t++ << " ===" << std::endl;
+    if(rank == 0)
+      std::cout << "=== test " << t++ << " ===" << std::endl;
     test_cdiag(10, 5, i);
   }
   for(int i = 0; i <= 12; i++) {
-    std::cout << "=== test " << t++ << " ===" << std::endl;
+    if(rank == 0)
+      std::cout << "=== test " << t++ << " ===" << std::endl;
     test_cdiag(30, 30, 2 * i);
   }
   for(int i = 0; i <= 12; i++) {
-    std::cout << "=== test " << t++ << " ===" << std::endl;
+    if(rank == 0)
+      std::cout << "=== test " << t++ << " ===" << std::endl;
     test_cdiag(20, 30, 2 * i);
   }
   for(int i = 0; i <= 12; i++) {
-    std::cout << "=== test " << t++ << " ===" << std::endl;
+    if(rank == 0)
+      std::cout << "=== test " << t++ << " ===" << std::endl;
     test_cdiag(30, 20, 2 * i);
   }
   std::cout << "=== finished without error === " << std::endl;

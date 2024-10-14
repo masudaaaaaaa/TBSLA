@@ -34,8 +34,6 @@ int main(int argc, char** argv) {
   tbsla::cpp::MatrixCOO mcoo;
   mcoo.read(is);
   is.close();
-  mcoo.print_stats(std::cout);
-  mcoo.print_infos(std::cout);
 
   tbsla::cpp::Matrix *m;
 
@@ -52,8 +50,6 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-
-  m->print_infos(std::cout);
   std::ofstream os(output, std::ofstream::binary);
   m->write(os);
   os.close();

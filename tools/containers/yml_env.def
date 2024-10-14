@@ -1,0 +1,33 @@
+Bootstrap: docker
+From: centos:7
+
+%post
+
+  yum update -y
+  yum install -y vim wget which byacc gcc gcc-c++ gcc-gfortran libtool autoconf automake make java-1.8.0-openjdk java-1.8.0-openjdk-devel javacc bison openssh-server openssh-clients libxml2-devel git flex help2man autogen ant antlr iproute libibverbs libibverbs-utils libibverbs-devel bzip2
+  yum clean all
+  rm -rf /var/cache/yum
+
+  export OMPI_VERSION=3.1.6
+  export OMPI_URL="https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-$OMPI_VERSION.tar.bz2"
+  export OMPI_DIR=/usr/local
+  mkdir -p /usr/local
+  cd /usr/local
+  wget -O /usr/local/openmpi-$OMPI_VERSION.tar.bz2 $OMPI_URL
+  pwd && ls
+  tar -xf openmpi-$OMPI_VERSION.tar.bz2
+  cd /usr/local/openmpi-$OMPI_VERSION
+  ./configure --with-verbs --prefix $OMPI_DIR
+  make -j 8
+  make install
+
+  export PATH=$OMPI_DIR/bin:$PATH
+  export LD_LIBRARY_PATH=$OMPI_DIR/lib:$LD_LIBRARY_PATH
+  export MANPATH=$OMPI_DIR/share/man:$MANPATH
+
+%environment
+  export OMPI_DIR=/usr/local
+  export SINGULARITY_OMPI_DIR=$OMPI_DIR
+  export SINGULARITYENV_APPEND_PATH=$OMPI_DIR/bin
+  export SINGULAIRTYENV_APPEND_LD_LIBRARY_PATH=$OMPI_DIR/lib
+  

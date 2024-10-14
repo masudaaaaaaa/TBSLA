@@ -44,7 +44,7 @@ std::tuple<std::size_t, std::size_t, double, std::size_t> tbsla::utils::values_g
   }
 }
 
-std::vector<double> tbsla::utils::values_generation::cqmat_sum_columns(std::size_t nr, std::size_t nc, std::size_t c, double q, unsigned seed_mult) {
+double* tbsla::utils::values_generation::cqmat_sum_columns(std::size_t nr, std::size_t nc, std::size_t c, double q, unsigned seed_mult) {
   std::size_t gnv = 0;
   for(std::size_t i = 0; i < std::min(nc - std::min(c, nc) + 1, nr); i++) {
     gnv += std::min(c, nc);
@@ -53,7 +53,10 @@ std::vector<double> tbsla::utils::values_generation::cqmat_sum_columns(std::size
     gnv += std::min(c, nc) - i - 1;
   }
 
-  std::vector<double> sum(nc, 0);
+  double* sum = new double[nc];
+  for (int i = 0; i < nc; i++) {
+    sum[i] = 0;
+  }
   for(std::size_t i = 0; i < gnv; i++) {
     auto tuple = tbsla::utils::values_generation::cqmat_value(i, nr, nc, c, q, seed_mult);
     sum[std::get<1>(tuple)] += std::get<2>(tuple);

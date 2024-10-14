@@ -4,12 +4,11 @@
 #include <tbsla/cpp/MatrixELL.hpp>
 #include <tbsla/cpp/MatrixDENSE.hpp>
 #include <tbsla/cpp/Matrix.hpp>
-#include <tbsla/cpp/utils/vector.hpp>
+#include <tbsla/cpp/utils/array.hpp>
 
 #include <iostream>
 
 void print(tbsla::cpp::Matrix & m) {
-  m.print_infos(std::cout);
   std::cout << "--------" << std::endl;
   std::cout << m << std::endl;
   std::cout << "--------" << std::endl;
@@ -19,23 +18,24 @@ void test_matrix(tbsla::cpp::Matrix & m, int c) {
   int nc, nr;
   nc = m.get_n_col();
   nr = m.get_n_row();
-  std::vector<double> v(nc);
+  double* v = new double[nc]();
   for(int i = 0; i < nc; i++) {
     v[i] = 2 * i + 1;
   }
-  std::vector<double> r = m.a_axpx_(v);
+  double* r = m.a_axpx_(v);
   int res;
-  res = tbsla::utils::vector::test_a_axpx__cdiag(nr, nc, c, v, r, false);
-  std::cout << "return : " << res << std::endl;
+  res = tbsla::utils::array::test_a_axpx__cdiag(nr, nc, c, v, r, false);
   if (res) {
-    tbsla::utils::vector::streamvector<double>(std::cout, "v", v);
+    tbsla::utils::array::stream<double>(std::cout, "v", v, nc);
     std::cout << std::endl;
-    tbsla::utils::vector::streamvector<double>(std::cout, "r", r);
+    tbsla::utils::array::stream<double>(std::cout, "r", r, nr);
     std::cout << std::endl;
     print(m);
-    res = tbsla::utils::vector::test_a_axpx__cdiag(nr, nc, c, v, r, true);
+    res = tbsla::utils::array::test_a_axpx__cdiag(nr, nc, c, v, r, true);
     exit(res);
   }
+  delete[] v;
+  delete[] r;
 }
 
 void test_cdiag(int nr, int nc, int c) {

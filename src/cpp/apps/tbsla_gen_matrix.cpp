@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     C = std::stoi(c_string);
   }
 
-  if(input.has_opt("--cqmat") || input.has_opt("--cqmat_stochastic")) {
+  if(input.has_opt("--cqmat")) {
     std::string c_string = input.get_opt("--C", "8");
     C = std::stoi(c_string);
     std::string q_string = input.get_opt("--Q", "0.1");
@@ -74,19 +74,7 @@ int main(int argc, char** argv) {
   if(input.has_opt("--cqmat")) {
     m->fill_cqmat(NR, NC, C, Q, S, pr, pc, GR, GC);
   }
-  if(input.has_opt("--cqmat_stochastic")) {
-    m->fill_cqmat_stochastic(NR, NC, C, Q, S, pr, pc, GR, GC);
-  }
 
-
-  if(input.has_opt("--normalize")) {
-    m->normalize_columns();
-  }
-
-  if(input.has_opt("--print-infos")) {
-    m->print_stats(std::cout);
-    m->print_infos(std::cout);
-  }
   if(input.has_opt("--print-matrix")) {
     std::cout << *m << std::endl;
   }

@@ -1,0 +1,61 @@
+Bootstrap: localimage
+From: ./yml_env.sif
+
+%post
+  mkdir /yml
+  cd /yml
+  wget https://mycore.core-cloud.net/index.php/s/DBeE2FL6gJsBHHg/download
+  tar xzf download
+  rm download
+  mv vm-sources/* .
+  rm -r vm-sources
+
+  export PREFIX=/yml/local
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PREFIX/lib
+  export PATH=$PATH:$PREFIX/bin
+  export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PREFIX/lib/pkgconfig
+
+  cd /yml/YMLEnvironment/expat-2.1.0
+  ./configure --prefix=$PREFIX
+  make clean
+  make -j 8
+  make install
+  make clean
+
+  cd /yml/YMLEnvironment/yml_omrpc_xmp/omnicompiler-1.1.1
+  ./configure --prefix=$PREFIX --with-libxml2=/usr --with-mpicc=mpicc
+  make clean
+  make -j 8
+  make install
+  make clean
+
+  cd /yml/YMLEnvironment/yml_omrpc_xmp/omnirpc-mpi-2.2.2-branch
+  ./configure --prefix=$PREFIX --enable-gcc --with-cc=mpicc --with-opt=-fPIC
+  make clean
+  make -j 8
+  make install
+  make clean
+
+  cd /yml/YMLEnvironment/yml_omrpc_xmp/libutil-0.1.5
+  autoreconf -vfi
+  env CPPFLAGS=-std=c++03 ./configure --prefix=$PREFIX --with-expat-incdir=$PREFIX/include --with-expat-libdir=$PREFIX/lib
+  make clean
+  make -j 8
+  make install
+  make clean
+
+  cd /yml/YMLEnvironment/yml_omrpc_xmp/yml-2.3.0
+  autoreconf -vfi
+  env CPPFLAGS="-I$PREFIX/include -std=c++03 -DOMPI_SKIP_MPICXX" ./configure --prefix=$PREFIX --with-expat-incdir=$PREFIX/include --with-expat-libdir=$PREFIX/lib --disable-xtremweb-net
+  make clean
+  make -j 8
+  make install
+  make clean
+
+  tar cf /yml_local.tar.gz $PREFIX
+
+%environment
+  export PS1="[\t]\w\\$ "
+  export PREFIX=/yml/local
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PREFIX/lib
+  export PATH=$PATH:$PREFIX/bin

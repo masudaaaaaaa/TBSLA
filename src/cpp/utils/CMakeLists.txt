@@ -1,4 +1,4 @@
-list(APPEND SRC_LIST split.cpp InputParser.cpp vector.cpp values_generation.cpp range.cpp csr.cpp cpuset_to_cstr.cpp)
+list(APPEND SRC_LIST split.cpp InputParser.cpp vector.cpp values_generation.cpp range.cpp csr.cpp cpuset_to_cstr.cpp array.cpp)
 
 add_library(tbsla_utils SHARED ${SRC_LIST})
 target_include_directories(tbsla_utils

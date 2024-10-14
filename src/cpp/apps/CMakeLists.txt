@@ -1,7 +1,3 @@
-add_executable(tbsla_spmv tbsla_spmv.cpp)
-target_link_libraries(tbsla_spmv PRIVATE tbsla)
-install(TARGETS tbsla_spmv DESTINATION bin)
-
 add_executable(tbsla_gen_matrix tbsla_gen_matrix.cpp)
 target_link_libraries(tbsla_gen_matrix PRIVATE tbsla)
 install(TARGETS tbsla_gen_matrix DESTINATION bin)
@@ -22,14 +18,6 @@ add_executable(tbsla_check_yml_results tbsla_check_yml_results.cpp)
 target_link_libraries(tbsla_check_yml_results PRIVATE tbsla)
 install(TARGETS tbsla_check_yml_results DESTINATION bin)
 
-add_executable(tbsla_page_rank tbsla_page_rank.cpp)
-target_link_libraries(tbsla_page_rank PRIVATE tbsla)
-install(TARGETS tbsla_page_rank DESTINATION bin)
-
-add_executable(tbsla_personalized_page_rank tbsla_personalized_page_rank.cpp)
-target_link_libraries(tbsla_personalized_page_rank PRIVATE tbsla)
-install(TARGETS tbsla_personalized_page_rank DESTINATION bin)
-
 add_executable(tbsla_perf tbsla_perf.cpp)
 target_link_libraries(tbsla_perf PRIVATE tbsla)
 install(TARGETS tbsla_perf DESTINATION bin)
@@ -44,5 +32,6 @@ if(TBSLA_ENABLE_OMP)
 
   add_executable(test_impl_csr_omp test_impl_csr.cpp)
   target_link_libraries(test_impl_csr_omp PUBLIC OpenMP::OpenMP_CXX)
+  target_link_options(test_impl_csr_omp PUBLIC "${TBSLA_OpenMP_CXX_LIBRARIES}")
   install(TARGETS test_impl_csr_omp DESTINATION bin)
 endif()

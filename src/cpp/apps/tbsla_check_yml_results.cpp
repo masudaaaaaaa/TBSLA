@@ -5,6 +5,7 @@
 #include <tbsla/cpp/MatrixDENSE.hpp>
 #include <tbsla/cpp/utils/InputParser.hpp>
 #include <tbsla/cpp/utils/vector.hpp>
+#include <tbsla/cpp/utils/array.hpp>
 
 #include <glob.h>
 #include <numeric>
@@ -182,13 +183,13 @@ int main(int argc, char** argv) {
     std::vector<double> v(NC);
     std::iota (std::begin(v), std::end(v), 0);
     std::string op = input.get_opt("--op");
-    std::vector<double> r;
+    double* r;
     if(op == "spmv") {
-      r = m.spmv(v, 0);
+      r = m.spmv(v.data(), 0);
     } else if(op == "a_axpx") {
-      r = m.a_axpx_(v, 0);
+      r = m.a_axpx_(v.data(), 0);
     }
-    tbsla::utils::vector::streamvector<double>(std::cout, "r (" + op + ")", r);
+    tbsla::utils::array::stream<double>(std::cout, "r (" + op + ")", r, NR);
     std::cout << std::endl << std::flush;
   }
 }

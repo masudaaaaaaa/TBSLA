@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: ubuntu:groovy
+
+%post
+
+  apt update -y
+  apt install -y vim wget gcc automake make openssh-server git locate mpich curl
+
+  wget https://cmake.org/files/v3.14/cmake-3.14.7-Linux-x86_64.tar.gz
+  tar xf cmake-3.14.7-Linux-x86_64.tar.gz
+  cp -r cmake-3.14.7-Linux-x86_64/bin/* /usr/local/bin
+  cp -r cmake-3.14.7-Linux-x86_64/man/* /usr/local/man
+  cp -r cmake-3.14.7-Linux-x86_64/share/* /usr/local/share
+  cp -r cmake-3.14.7-Linux-x86_64/doc/* /usr/local/doc
+  rm -r cmake-3.14.7-Linux-x86_64*
+
+  cd /
+  git clone https://github.com/spack/spack.git
+  . /spack/share/spack/setup-env.sh
+  spack compiler find
+  spack install hpctoolkit +mpi
+
+%environment
+  . /spack/share/spack/setup-env.sh
+

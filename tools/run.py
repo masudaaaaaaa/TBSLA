@@ -7,11 +7,13 @@ import json
 import sys
 from datetime import datetime
 import time
+import os
 
 parser = argparse.ArgumentParser(description="Run TBSLA application", parents=[cap.add_common(required = True)])
 parser.add_argument('cmd')
 parser.add_argument('--dic', dest="dic")
 parser.add_argument('--rod', '--require-output-dic', help="Require an output dict from the app to check if it worked", dest="rod", type=int, default=1, choices=[0, 1])
+parser.add_argument('--infile', help="File to parse to find the dict, default is stdout", dest='infile', default="stdout")
 args = parser.parse_args()
 
 machine = importlib.import_module("machine." + args.machine)
@@ -41,6 +43,12 @@ errs = errs.decode('utf-8')
 
 print(errs, file=sys.stderr)
 print(outs)
+
+if args.infile != "stdout" and os.path.isfile(args.infile):
+  print(args.infile)
+  with open(args.infile) as f:
+    outs = f.read()
+    print(outs)
 
 r = re.findall(r'^{.*}', outs, re.M)
 dic = dict()

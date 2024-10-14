@@ -5,7 +5,7 @@
 #include <tbsla/mpi/MatrixELL.hpp>
 #include <tbsla/mpi/MatrixDENSE.hpp>
 
-#include <tbsla/cpp/utils/vector.hpp>
+#include <tbsla/cpp/utils/array.hpp>
 
 #include <mpi.h>
 
@@ -34,46 +34,46 @@ void test_mpiio(int pr, int pc, int NR, int NC) {
 
   tbsla::mpi::MatrixCOO mcoo;
   mcoo.read_bin_mpiio(MPI_COMM_WORLD, "mcoo.bin", pr, pc, NR, NC);
-  std::vector<double> v(mcoo.get_n_col());
-  std::iota (std::begin(v), std::end(v), 0);
-  std::vector<double> rg_coo = mcoo.spmv(MPI_COMM_WORLD, v);
+  double* v = new double[mcoo.get_n_col()];
+  std::iota (v, v + mcoo.get_n_col(), 0);
+  double* rg_coo = mcoo.spmv(MPI_COMM_WORLD, v);
 
   tbsla::mpi::MatrixSCOO mscoo;
   mscoo.read_bin_mpiio(MPI_COMM_WORLD, "mcoo.bin", pr, pc, NR, NC);
-  std::vector<double> vl(mscoo.get_ln_col());
-  std::iota (std::begin(vl), std::end(vl), mscoo.get_f_col());
-  std::vector<double> rl_scoo = mscoo.spmv(vl, 0);
-  std::vector<double> rg_scoo = mscoo.spmv(MPI_COMM_WORLD, vl);
+  double* vl = new double[mscoo.get_ln_col()];
+  std::iota (vl, vl + mscoo.get_ln_col(), mscoo.get_f_col());
+  double* rl_scoo = mscoo.spmv(vl);
+  double* rg_scoo = mscoo.spmv(MPI_COMM_WORLD, vl);
 
   tbsla::mpi::MatrixCSR mcsr;
   mcsr.read_bin_mpiio(MPI_COMM_WORLD, "mcsr.bin", pr, pc, NR, NC);
-  std::vector<double> rl_csr = mcsr.spmv(vl, 0);
+  double* rl_csr = mcsr.spmv(vl, 0);
 
   tbsla::mpi::MatrixELL mell;
   mell.read_bin_mpiio(MPI_COMM_WORLD, "mell.bin", pr, pc, NR, NC);
-  std::vector<double> rl_ell = mell.spmv(vl, 0);
+  double* rl_ell = mell.spmv(vl, 0);
 
   tbsla::mpi::MatrixDENSE mdense;
   mdense.read_bin_mpiio(MPI_COMM_WORLD, "mdense.bin", pr, pc, NR, NC);
-  std::vector<double> rl_dense = mdense.spmv(vl, 0);
+  double* rl_dense = mdense.spmv(vl, 0);
 
-  if(rg_coo != rg_scoo) {
+  if(tbsla::utils::array::compare_arrays(rg_coo, rg_scoo, mcoo.get_n_row())) {
     print(mcoo);
     print(mscoo);
     exit(1);
   }
 
-  if(rl_csr != rl_scoo) {
+  if(tbsla::utils::array::compare_arrays(rl_csr, rl_scoo, mcsr.get_ln_row())) {
     print(mscoo);
     print(mcsr);
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
-        tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+        tbsla::utils::array::stream<double>(std::cout, "vl ", vl, mcsr.get_ln_col());
         std::cout << std::endl << std::flush;
-        tbsla::utils::vector::streamvector<double>(std::cout, "rl_csr ", rl_csr);
+        tbsla::utils::array::stream<double>(std::cout, "rl_csr ", rl_csr, mcsr.get_ln_row());
         std::cout << std::endl << std::flush;
-        tbsla::utils::vector::streamvector<double>(std::cout, "rl_scoo ", rl_scoo);
+        tbsla::utils::array::stream<double>(std::cout, "rl_scoo ", rl_scoo, mcsr.get_ln_row());
         std::cout << std::endl << std::flush;
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -81,17 +81,17 @@ void test_mpiio(int pr, int pc, int NR, int NC) {
     exit(2);
   }
 
-  if(rl_ell != rl_scoo) {
+  if(tbsla::utils::array::compare_arrays(rl_ell, rl_scoo, mcsr.get_ln_row())) {
     print(mscoo);
     print(mell);
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
-        tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+        tbsla::utils::array::stream<double>(std::cout, "vl ", vl, mcsr.get_ln_col());
         std::cout << std::endl << std::flush;
-        tbsla::utils::vector::streamvector<double>(std::cout, "rl_ell ", rl_ell);
+        tbsla::utils::array::stream<double>(std::cout, "rl_ell ", rl_ell, mcsr.get_ln_row());
         std::cout << std::endl << std::flush;
-        tbsla::utils::vector::streamvector<double>(std::cout, "rl_scoo ", rl_scoo);
+        tbsla::utils::array::stream<double>(std::cout, "rl_scoo ", rl_scoo, mcsr.get_ln_row());
         std::cout << std::endl << std::flush;
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -99,17 +99,17 @@ void test_mpiio(int pr, int pc, int NR, int NC) {
     exit(3);
   }
 
-  if(rl_dense != rl_scoo) {
+  if(tbsla::utils::array::compare_arrays(rl_dense, rl_scoo, mcsr.get_ln_row())) {
     print(mscoo);
     print(mdense);
     for(int i = 0; i < world; i++) {
       MPI_Barrier(MPI_COMM_WORLD);
       if(i == rank) {
-        tbsla::utils::vector::streamvector<double>(std::cout, "vl ", vl);
+        tbsla::utils::array::stream<double>(std::cout, "vl ", vl, mcsr.get_ln_col());
         std::cout << std::endl << std::flush;
-        tbsla::utils::vector::streamvector<double>(std::cout, "rl_dense ", rl_dense);
+        tbsla::utils::array::stream<double>(std::cout, "rl_dense ", rl_dense, mcsr.get_ln_row());
         std::cout << std::endl << std::flush;
-        tbsla::utils::vector::streamvector<double>(std::cout, "rl_scoo ", rl_scoo);
+        tbsla::utils::array::stream<double>(std::cout, "rl_scoo ", rl_scoo, mcsr.get_ln_row());
         std::cout << std::endl << std::flush;
       }
       MPI_Barrier(MPI_COMM_WORLD);
