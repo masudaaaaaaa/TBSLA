@@ -12,6 +12,7 @@ if(TBSLA_ENABLE_VECTO)
 endif()
 
 if(TBSLA_ENABLE_OMP)
+  target_link_libraries(tbsla PUBLIC OpenMP::OpenMP_CXX)
   add_library(tbsla_omp SHARED ${SRC_LIST})
   target_include_directories(tbsla_omp
     PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/cpp/include>
@@ -27,5 +28,5 @@ if(TBSLA_ENABLE_OMP)
   endif()
 endif()
 
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/cpp/include/tbsla DESTINATION "include")
 
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/cpp/include/tbsla DESTINATION "include")
