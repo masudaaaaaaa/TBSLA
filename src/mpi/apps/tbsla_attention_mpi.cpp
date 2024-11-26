@@ -64,11 +64,13 @@ int main(int argc, char** argv) {
     int ln_row = matrix_dim / GR; // Rows in the local block
     int ln_col = matrix_dim / GC; // Columns in the local block
 
-    // Initialize sparse matrix (CSR format)
-    tbsla::mpi::MatrixCSR A;
-    auto t_one = now();
-    A.fill_random(matrix_dim, matrix_dim, nnz_ratio * matrix_dim * matrix_dim, 0, pr, pc, GR, GC);
+    // Declare matrix as a pointer to the base type
+    tbsla::mpi::Matrix* m;
+    m = new tbsla::mpi::MatrixCSR();
 
+    // Initialize and fill the matrix with random values
+    auto t_one = now();
+    m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0 /*seed*/, pr, pc, GR, GC);
     auto t_two = now();
 
     // Allocate normalization buffers (if needed)
@@ -82,7 +84,7 @@ int main(int argc, char** argv) {
     auto t_three = now();
     std::cout << "Normalizing sparse matrix with buffers of size " << ln_col << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    A.make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
     auto t_four = now();
 
@@ -103,12 +105,12 @@ int main(int argc, char** argv) {
 
     // Perform sparse-dense multiplication
     auto t_start = now();
-    A.dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
+    m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
     auto t_end = now();
 
     // Gather and output performance metrics
     double runtime = (t_end - t_start) / 1e9; // in seconds
-    long int nnz = A.compute_sum_nnz(MPI_COMM_WORLD);
+    long int nnz = m->compute_sum_nnz(MPI_COMM_WORLD);
 
     if (rank == 0) {
         double gflops = compute_gflops(runtime, nnz, cols_B);
@@ -129,6 +131,7 @@ int main(int argc, char** argv) {
     delete[] C_local;
     if (rank == 0) delete[] B;
 
+    delete m; // Free dynamically allocated matrix
     MPI_Finalize();
     return 0;
 }
