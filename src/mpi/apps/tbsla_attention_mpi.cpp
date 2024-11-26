@@ -8,17 +8,19 @@
 #include <cmath>
 #include <cstring>
 
+// Function to measure current time in nanoseconds
 static std::uint64_t now() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::steady_clock::now().time_since_epoch()
     ).count();
 }
 
+// Distribute dense matrix rows across MPI processes
 void distribute_dense_matrix(const double* B, double* B_local, int rows_B, int cols_B, int ln_rows, MPI_Comm comm) {
-    // Scatter dense matrix rows to processes
     MPI_Scatter(B, ln_rows * cols_B, MPI_DOUBLE, B_local, ln_rows * cols_B, MPI_DOUBLE, 0, comm);
 }
 
+// Compute GFLOPS for sparse-dense multiplication
 double compute_gflops(double runtime, int nnz, int cols_B) {
     return (2.0 * nnz * cols_B) / (runtime * 1e9); // GFLOPS
 }
@@ -32,7 +34,7 @@ int main(int argc, char** argv) {
 
     InputParser input(argc, argv);
 
-    // Input parsing
+    // Parse input arguments
     std::string matrix_dim_string = input.get_opt("--matrix_dim", "1024");
     std::string gr_string = input.get_opt("--GR", "1");
     std::string gc_string = input.get_opt("--GC", "1");
@@ -45,6 +47,7 @@ int main(int argc, char** argv) {
     double nnz_ratio = std::stod(nnz_ratio_string);
     int cols_B = std::stoi(cols_B_string);
 
+    // Check if process grid matches the number of processes
     if (GR * GC != world) {
         if (rank == 0) {
             std::cerr << "Grid dimensions (GR x GC) do not match the number of processes!" << std::endl;
@@ -63,13 +66,30 @@ int main(int argc, char** argv) {
 
     // Initialize sparse matrix (CSR format)
     tbsla::mpi::MatrixCSR A;
-    A.fill_random(matrix_dim, matrix_dim, nnz_ratio, rank / GC, rank % GC, GR, GC);
+    auto t_one = now();
+    A.fill_random(matrix_dim, matrix_dim, nnz_ratio * matrix_dim * matrix_dim, pr, pc, GR, GC);
+    auto t_two = now();
 
-    // Initialize dense matrix B (only on root)
+    // Allocate normalization buffers (if needed)
+    double* s = new double[ln_col];
+    double* b1 = new double[ln_col];
+    double* b2 = new double[1];
+    std::fill(s, s + ln_col, 0);
+    std::fill(b1, b1 + ln_col, 0);
+
+    // Normalize sparse matrix (optional, for stochastic matrices)
+    auto t_three = now();
+    std::cout << "Normalizing sparse matrix with buffers of size " << ln_col << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    A.make_stochastic(MPI_COMM_WORLD, s, b1, b2);
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto t_four = now();
+
+    // Initialize dense matrix B (only on root process)
     double* B = nullptr;
     if (rank == 0) {
         B = new double[matrix_dim * cols_B];
-        std::fill(B, B + matrix_dim * cols_B, 1.0); // Fill with dummy data
+        std::fill(B, B + matrix_dim * cols_B, 1.0); // Example: Fill with dummy data
     }
 
     // Local dense matrix block
@@ -85,7 +105,7 @@ int main(int argc, char** argv) {
     A.dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
     auto t_end = now();
 
-    // Collect and output results
+    // Gather and output performance metrics
     double runtime = (t_end - t_start) / 1e9; // in seconds
     long int nnz = A.compute_sum_nnz(MPI_COMM_WORLD);
 
@@ -93,12 +113,17 @@ int main(int argc, char** argv) {
         double gflops = compute_gflops(runtime, nnz, cols_B);
         std::cout << "Matrix Dimension: " << matrix_dim << " x " << matrix_dim << std::endl;
         std::cout << "Dense Matrix Columns: " << cols_B << std::endl;
+        std::cout << "NNZ: " << nnz << std::endl;
         std::cout << "Runtime: " << runtime << " seconds" << std::endl;
         std::cout << "GFLOPS: " << gflops << std::endl;
-        std::cout << "NNZ: " << nnz << std::endl;
+        std::cout << "Time for Random Filling: " << (t_two - t_one) / 1e9 << " seconds" << std::endl;
+        std::cout << "Time for Normalization: " << (t_four - t_three) / 1e9 << " seconds" << std::endl;
     }
 
     // Clean up
+    delete[] s;
+    delete[] b1;
+    delete[] b2;
     delete[] B_local;
     delete[] C_local;
     if (rank == 0) delete[] B;
