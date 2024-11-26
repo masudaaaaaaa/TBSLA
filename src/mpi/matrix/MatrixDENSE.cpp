@@ -45,4 +45,3 @@ int tbsla::mpi::MatrixDENSE::read_bin_mpiio(MPI_Comm comm, std::string filename,
   MPI_File_close(&fh);
   return 0;
 }
-

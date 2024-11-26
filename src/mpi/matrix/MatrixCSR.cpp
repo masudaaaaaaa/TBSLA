@@ -6,6 +6,34 @@
 
 #define TBSLA_MATRIX_CSR_READLINES 2048
 
+void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_local, int B_cols, MPI_Comm comm) {
+    // Initialize C_local
+    std::fill(C_local, C_local + this->ln_row * B_cols, 0.0);
+
+    // Perform local sparse-dense multiplication
+    for (int i = 0; i < this->ln_row; ++i) {
+        for (int j = this->row_pointers[i]; j < this->row_pointers[i + 1]; ++j) {
+            int col = this->col_indices[j];
+            double value = this->values[j];
+            for (int k = 0; k < B_cols; ++k) {
+                C_local[i * B_cols + k] += value * B_local[col * B_cols + k];
+            }
+        }
+    }
+
+    // Reduce results along rows of processors
+    double* C_reduced = (this->pc == 0) ? new double[this->ln_row * B_cols] : nullptr;
+    MPI_Reduce(C_local, C_reduced, this->ln_row * B_cols, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+    if (this->pc == 0) {
+        // Save or process reduced results as needed
+        // e.g., write to file or output the result
+    }
+
+    if (C_reduced) delete[] C_reduced;
+}
+
+
 int tbsla::mpi::MatrixCSR::read_bin_mpiio(MPI_Comm comm, std::string filename, int pr, int pc, int NR, int NC) {
   int world, rank;
   MPI_Comm_size(comm, &world);
