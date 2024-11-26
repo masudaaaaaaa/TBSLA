@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
     // Initialize sparse matrix (CSR format)
     tbsla::mpi::MatrixCSR A;
     auto t_one = now();
-    A.tbsla::mpi::MatrixCSR::fill_random(matrix_dim, matrix_dim, nnz_ratio * matrix_dim * matrix_dim, pr, pc, GR, GC);
+    A.fill_random(matrix_dim, matrix_dim, nnz_ratio * matrix_dim * matrix_dim, 0, pr, pc, GR, GC);
 
     auto t_two = now();
 
