@@ -12,8 +12,8 @@ void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_loca
 
     // Perform local sparse-dense multiplication
     for (int i = 0; i < this->ln_row; ++i) {
-        for (int j = this->row_pointers[i]; j < this->row_pointers[i + 1]; ++j) {
-            int col = this->col_indices[j];
+        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) {
+            int col = this->colidx[j];
             double value = this->values[j];
             for (int k = 0; k < B_cols; ++k) {
                 C_local[i * B_cols + k] += value * B_local[col * B_cols + k];
