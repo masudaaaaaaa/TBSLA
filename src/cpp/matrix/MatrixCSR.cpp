@@ -1248,6 +1248,7 @@ void tbsla::cpp::MatrixCSR::NUMAinit() {
 
 void tbsla::cpp::MatrixCSR::dense_multiply(const double* B, double* C, int cols_B) {
     std::fill(C, C + this->n_row * cols_B, 0.0);
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < this->n_row; ++i) {
         for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) {
             int col = this->colidx[j];

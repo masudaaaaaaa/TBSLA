@@ -28,7 +28,7 @@ class MatrixCSR : public tbsla::cpp::MatrixCSR, public tbsla::mpi::Matrix {
     using tbsla::mpi::Matrix::a_axpx_;
 private:
     void mpiio_read_lines(MPI_File &fh, int s, int n, int rowptr_start, int colidx_start, int values_start, size_t& mem_alloc);
-    void dense_multiply(const double* B_local, double* C_local, int B_cols, MPI_Comm comm);
+    // void dense_multiply(const double* B_local, double* C_local, int B_cols, MPI_Comm comm);
 };
 
 }}
