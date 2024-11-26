@@ -1249,8 +1249,8 @@ void tbsla::cpp::MatrixCSR::NUMAinit() {
 void tbsla::cpp::MatrixCSR::dense_multiply(const double* B, double* C, int cols_B) {
     std::fill(C, C + this->n_row * cols_B, 0.0);
     for (int i = 0; i < this->n_row; ++i) {
-        for (int j = this->row_pointers[i]; j < this->row_pointers[i + 1]; ++j) {
-            int col = this->col_indices[j];
+        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) {
+            int col = this->colidx[j];
             double value = this->values[j];
             for (int k = 0; k < cols_B; ++k) {
                 C[i * cols_B + k] += value * B[col * cols_B + k];
