@@ -82,32 +82,27 @@ int main(int argc, char** argv) {
 
     // Normalize sparse matrix (optional, for stochastic matrices)
     auto t_three = now();
-    std::cout << "Normalizing sparse matrix with buffers of size " << ln_col << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
     m->make_stochastic(MPI_COMM_WORLD, s, b1, b2);
     MPI_Barrier(MPI_COMM_WORLD);
     auto t_four = now();
 
     // Initialize dense matrix B (only on root process)
-    std::cout << "Dense matrix initialization" << std::endl;
+
     double* B = nullptr;
     if (rank == 0) {
         B = new double[matrix_dim * cols_B];
         std::fill(B, B + matrix_dim * cols_B, 1.0); // Example: Fill with dummy data
     }
 
-     std::cout << "Dense matrix initialized." << std::endl;
-     std::cout << "Dense matrix distribution" << std::endl;
     // Local dense matrix block
     double* B_local = new double[ln_row * cols_B];
     distribute_dense_matrix(B, B_local, matrix_dim, cols_B, ln_row, MPI_COMM_WORLD);
-    std::cout << "Dense matrix distributed" << std::endl;
-    std::cout << "Local C matrix initialization" << std::endl;
+
     // Local result matrix
     double* C_local = new double[ln_row * cols_B];
     std::memset(C_local, 0, sizeof(double) * ln_row * cols_B);
-    std::cout << "Local C matrix initialized" << std::endl;
-       std::cout << "Performing sparse-dense product" << std::endl;
+
     // Perform sparse-dense multiplication
     auto t_start = now();
     m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
