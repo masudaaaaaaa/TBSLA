@@ -126,12 +126,12 @@ int main(int argc, char** argv) {
     }
 
     // Clean up
-    // delete[] s;
-    // delete[] b1;
-    // delete[] b2;
-    // delete[] B_local;
-    // delete[] C_local;
-    // if (rank == 0) delete[] B;
+    delete[] s;
+    delete[] b1;
+    delete[] b2;
+    delete[] B_local;
+    delete[] C_local;
+    if (rank == 0) delete[] B;
 
     // delete m; // Free dynamically allocated matrix
     MPI_Finalize();
