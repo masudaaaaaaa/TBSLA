@@ -98,6 +98,10 @@ int main(int argc, char** argv) {
     // Local dense matrix block
     double* B_local = new double[ln_row * cols_B];
     distribute_dense_matrix(B, B_local, matrix_dim, cols_B, ln_row, MPI_COMM_WORLD);
+    std::cout << "$$$ B for rank: " << rank << std::endl;
+    std::cout << "$  ln_row :" << B_local->ln_row << std::endl;
+
+
 
     // Local result matrix
     double* C_local = new double[ln_row * cols_B];
@@ -107,6 +111,7 @@ int main(int argc, char** argv) {
     auto t_start = now();
     m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
     auto t_end = now();
+    std::cout << "#### dense_multiply completed for rank: " << rank << std::endl;
 
     // Gather and output performance metrics
     double runtime = (t_end - t_start) / 1e9; // in seconds
