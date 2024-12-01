@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
     // delete[] C_local;
     // if (rank == 0) delete[] B;
 
-    delete m; // Free dynamically allocated matrix
+    // delete m; // Free dynamically allocated matrix
     MPI_Finalize();
     return 0;
 }
