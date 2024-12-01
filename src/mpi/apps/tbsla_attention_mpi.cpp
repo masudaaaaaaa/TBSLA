@@ -99,9 +99,6 @@ int main(int argc, char** argv) {
     double* B_local = new double[ln_row * cols_B];
     distribute_dense_matrix(B, B_local, matrix_dim, cols_B, ln_row, MPI_COMM_WORLD);
     std::cout << "$$$ B for rank: " << rank << std::endl;
-    std::cout << "$  ln_row :" << B_local->ln_row << std::endl;
-
-
 
     // Local result matrix
     double* C_local = new double[ln_row * cols_B];
