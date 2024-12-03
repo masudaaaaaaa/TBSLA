@@ -7,6 +7,20 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <random> 
+if (rank == 0) {
+    B = new double[matrix_dim * cols_B];
+    
+    // Set up the random number generator
+    std::random_device rd; // Obtain a random seed
+    std::mt19937 gen(rd()); // Standard mersenne_twister_engine
+    std::uniform_real_distribution<> dis(0.0, 1.0); // Range of random values [0, 1]
+
+    for (int i = 0; i < matrix_dim * cols_B; ++i) {
+        B[i] = dis(gen); // Assign a random value to each element
+    }
+}
+
 
 // Function to measure current time in nanoseconds
 static std::uint64_t now() {
@@ -82,6 +96,9 @@ int main(int argc, char** argv) {
     m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0 /*seed*/, pr, pc, GR, GC);
     auto t_two = now();
 
+    std::cout >> "A print : " >> std::endl;;
+    m->print_as_dense(std::cout);
+
     // Allocate normalization buffers (if needed)
     double* s = new double[ln_col];
     double* b1 = new double[ln_col];
@@ -101,7 +118,14 @@ int main(int argc, char** argv) {
     double* B = nullptr;
     if (rank == 0) {
         B = new double[matrix_dim * cols_B];
-        std::fill(B, B + matrix_dim * cols_B, 1.0); // Example: Fill with dummy data
+        
+        std::random_device rd; // Obtain a random seed
+        std::mt19937 gen(rd()); // Standard mersenne_twister_engine
+        std::uniform_real_distribution<> dis(0.0, 1.0); // Range of random values [0, 1]
+
+        for (int i = 0; i < matrix_dim * cols_B; ++i) {
+            B[i] = dis(gen); // Assign a random value to each element
+        }
     }
 
     // Local dense matrix block
