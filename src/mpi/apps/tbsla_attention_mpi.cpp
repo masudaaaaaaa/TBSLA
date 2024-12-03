@@ -84,8 +84,8 @@ int main(int argc, char** argv) {
     m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0 /*seed*/, pr, pc, GR, GC);
     auto t_two = now();
 
-    std::cout << "A print : " << std::endl;;
-    m->print_as_dense(std::cout);
+    std::cout << "A print : " << std::endl;
+    std::cout << *m ;
 
     // Allocate normalization buffers (if needed)
     double* s = new double[ln_col];
