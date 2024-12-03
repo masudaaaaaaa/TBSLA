@@ -162,6 +162,7 @@ int main(int argc, char** argv) {
     double* C_local = new double[ln_row * cols_B];
     std::memset(C_local, 0, sizeof(double) * ln_row * cols_B);
 
+    debug_print(rank, world, B_local, C_local, m, ln_row, cols_B);
 
     // Perform sparse-dense multiplication
     auto t_start = now();
@@ -173,7 +174,7 @@ int main(int argc, char** argv) {
     double runtime = (t_end - t_start) / 1e9; // in seconds
     long int nnz = m->compute_sum_nnz(MPI_COMM_WORLD);
 
-    debug_print(rank, world, B_local, C_local, m, ln_row, cols_B);
+
 
     if (rank == 0) {
         double gflops = compute_gflops(runtime, nnz, cols_B);
