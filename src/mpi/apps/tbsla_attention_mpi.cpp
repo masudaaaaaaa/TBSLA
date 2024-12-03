@@ -36,6 +36,23 @@ void print_dense_matrix(double* M, int nb_row, int nb_col) {
     }
 }
 
+void fill_matrix_by_blocks(double* B, int matrix_dim, int cols_B, int n_blocks) {
+    int rows_per_block = matrix_dim / n_blocks; // Rows in each block
+    int extra_rows = matrix_dim % n_blocks;    // Handle remaining rows
+
+    int current_row = 0; // Track the current row in B
+    for (int block_id = 0; block_id < n_blocks; ++block_id) {
+        int block_rows = rows_per_block + (block_id < extra_rows ? 1 : 0); // Distribute extra rows
+
+        for (int i = 0; i < block_rows; ++i) {
+            for (int j = 0; j < cols_B; ++j) {
+                B[current_row * cols_B + j] = static_cast<double>(block_id);
+            }
+            ++current_row;
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
@@ -102,24 +119,6 @@ int main(int argc, char** argv) {
     auto t_four = now();
 
     // Initialize dense matrix B (only on root process)
-    void fill_matrix_by_blocks(double* B, int matrix_dim, int cols_B, int n_blocks) {
-    int rows_per_block = matrix_dim / n_blocks; // Rows in each block
-    int extra_rows = matrix_dim % n_blocks;    // Handle remaining rows
-
-    int current_row = 0; // Track the current row in B
-    for (int block_id = 0; block_id < n_blocks; ++block_id) {
-        int block_rows = rows_per_block + (block_id < extra_rows ? 1 : 0); // Distribute extra rows
-
-        for (int i = 0; i < block_rows; ++i) {
-            for (int j = 0; j < cols_B; ++j) {
-                B[current_row * cols_B + j] = static_cast<double>(block_id);
-            }
-            ++current_row;
-        }
-    }
-}
-
-
     double* B = nullptr;
     if (rank == 0) {
         B = new double[matrix_dim * cols_B];
