@@ -8,18 +8,6 @@
 #include <cmath>
 #include <cstring>
 #include <random> 
-if (rank == 0) {
-    B = new double[matrix_dim * cols_B];
-    
-    // Set up the random number generator
-    std::random_device rd; // Obtain a random seed
-    std::mt19937 gen(rd()); // Standard mersenne_twister_engine
-    std::uniform_real_distribution<> dis(0.0, 1.0); // Range of random values [0, 1]
-
-    for (int i = 0; i < matrix_dim * cols_B; ++i) {
-        B[i] = dis(gen); // Assign a random value to each element
-    }
-}
 
 
 // Function to measure current time in nanoseconds
