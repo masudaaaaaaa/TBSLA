@@ -54,6 +54,7 @@ void fill_matrix_by_blocks(double* B, int matrix_dim, int cols_B, int n_blocks) 
 }
 
 void debug_print(int rank, int world, double* B_local, double* C_local, tbsla::mpi::Matrix* m, int ln_row, int cols_B) {
+    MPI_Barrier(MPI_COMM_WORLD); // Ensure all processes reach this point
     for (int i = 0; i < world; ++i) {
         if (rank == i) {
             std::cout << "=== Debugging Rank " << rank << " ===" << std::endl;
@@ -75,6 +76,7 @@ void debug_print(int rank, int world, double* B_local, double* C_local, tbsla::m
         MPI_Barrier(MPI_COMM_WORLD); // Synchronize before moving to the next rank
     }
 }
+
 
 
 int main(int argc, char** argv) {
