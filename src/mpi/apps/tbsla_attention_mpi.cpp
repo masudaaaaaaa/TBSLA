@@ -53,6 +53,30 @@ void fill_matrix_by_blocks(double* B, int matrix_dim, int cols_B, int n_blocks) 
     }
 }
 
+void debug_print(int rank, int world, double* B_local, double* C_local, tbsla::mpi::Matrix* m, int ln_row, int cols_B) {
+    for (int i = 0; i < world; ++i) {
+        if (rank == i) {
+            std::cout << "=== Debugging Rank " << rank << " ===" << std::endl;
+
+            // Print the sparse matrix state
+            std::cout << "Sparse Matrix (local to rank " << rank << "):" << std::endl;
+            std::cout << *m << std::endl;
+
+            // Print local dense matrix B
+            std::cout << "Local Dense Matrix B (rank " << rank << "):" << std::endl;
+            print_dense_matrix(B_local, ln_row, cols_B);
+
+            // Print local result matrix C
+            std::cout << "Local Result Matrix C (rank " << rank << "):" << std::endl;
+            print_dense_matrix(C_local, ln_row, cols_B);
+
+            std::cout << "=== End of Rank " << rank << " ===" << std::endl;
+        }
+        MPI_Barrier(MPI_COMM_WORLD); // Synchronize before moving to the next rank
+    }
+}
+
+
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
@@ -101,8 +125,8 @@ int main(int argc, char** argv) {
     m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0 /*seed*/, pr, pc, GR, GC);
     auto t_two = now();
 
-    std::cout << "A print : " << std::endl;
-    std::cout << *m ;
+    // std::cout << "A print : " << std::endl;
+    // std::cout << *m ;
 
     // Allocate normalization buffers (if needed)
     double* s = new double[ln_col];
@@ -122,14 +146,14 @@ int main(int argc, char** argv) {
     double* B = nullptr;
     if (rank == 0) {
         B = new double[matrix_dim * cols_B];
-        fill_matrix_by_blocks(B, matrix_dim, cols_B, world);
+        fill_matrix_by_blocks(B, matrix_dim, cols_B, world/2);
     }
 
     // Local dense matrix block
     double* B_local = new double[ln_row * cols_B];
     distribute_dense_matrix(B, B_local, matrix_dim, cols_B, ln_row, MPI_COMM_WORLD);
-    std::cout << "$$$ B for rank: " << rank << std::endl;
-    print_dense_matrix(B_local, ln_row, cols_B);
+    // std::cout << "$$$ B for rank: " << rank << std::endl;
+    // print_dense_matrix(B_local, ln_row, cols_B);
 
 
     // Local result matrix
@@ -146,6 +170,8 @@ int main(int argc, char** argv) {
     // Gather and output performance metrics
     double runtime = (t_end - t_start) / 1e9; // in seconds
     long int nnz = m->compute_sum_nnz(MPI_COMM_WORLD);
+
+    debug_print(rank, world, B_local, C_local, m, ln_row, cols_B);
 
     if (rank == 0) {
         double gflops = compute_gflops(runtime, nnz, cols_B);
