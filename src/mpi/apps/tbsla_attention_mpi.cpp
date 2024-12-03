@@ -25,6 +25,14 @@ double compute_gflops(double runtime, int nnz, int cols_B) {
     return (2.0 * nnz * cols_B) / (runtime * 1e9); // GFLOPS
 }
 
+void print_dense_matrix(double* M, int nb_row, int nb_col) {
+    for (int i=0; i<nb_row; i++){
+        for (int j=0; j<nb_col; j++){
+            std::cout << M[i*nb_col + j]
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
@@ -99,10 +107,13 @@ int main(int argc, char** argv) {
     double* B_local = new double[ln_row * cols_B];
     distribute_dense_matrix(B, B_local, matrix_dim, cols_B, ln_row, MPI_COMM_WORLD);
     std::cout << "$$$ B for rank: " << rank << std::endl;
+    print_dense_matrix(B_local, ln_row, cols_B);
+
 
     // Local result matrix
     double* C_local = new double[ln_row * cols_B];
     std::memset(C_local, 0, sizeof(double) * ln_row * cols_B);
+    
 
     // Perform sparse-dense multiplication
     auto t_start = now();
