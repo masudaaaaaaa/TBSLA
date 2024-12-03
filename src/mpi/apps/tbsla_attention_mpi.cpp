@@ -28,8 +28,9 @@ double compute_gflops(double runtime, int nnz, int cols_B) {
 void print_dense_matrix(double* M, int nb_row, int nb_col) {
     for (int i=0; i<nb_row; i++){
         for (int j=0; j<nb_col; j++){
-            std::cout << M[i*nb_col + j]
+            std::cout << M[i*nb_col + j];
         }
+            std::cout << std::endl;
     }
 }
 
@@ -113,7 +114,7 @@ int main(int argc, char** argv) {
     // Local result matrix
     double* C_local = new double[ln_row * cols_B];
     std::memset(C_local, 0, sizeof(double) * ln_row * cols_B);
-    
+
 
     // Perform sparse-dense multiplication
     auto t_start = now();
