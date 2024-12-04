@@ -1143,7 +1143,7 @@ void tbsla::cpp::MatrixCSR::fill_brain(int n_row, int n_col, int* neuron_type, s
 }
 
 
-void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
+/*void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
   std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row+this->ln_row << std::endl;
   #pragma omp parallel for schedule(static)
   //for (int i = this->f_row; i < this->f_row+this->ln_row; i++) {
@@ -1152,18 +1152,47 @@ void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
     for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
       sum += this->values[j];
     }
-	s[i+this->f_row] = sum;
+	s[i] = sum;
+ //s[i+this->f_row] = sum;
 	//std::cout << "sum[" << i << "] = " << sum << std::endl;
+  }
+}*/
+
+void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
+  std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+    double sum = 0;
+    for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
+      sum += this->values[j];
+    }
+    s[i] = sum;
   }
 }
 
-void tbsla::cpp::MatrixCSR::normalize_rows(double* s) {
+
+/*void tbsla::cpp::MatrixCSR::normalize_rows(double* s) {
   std::cout << "Normalizing on rows " << this->f_row << " to " << this->f_row+this->ln_row << std::endl;
   #pragma omp parallel for schedule(static)
   //for (int i = this->f_row; i < this->f_row+this->ln_row; i++) {
   for (int i = 0; i < this->ln_row; i++) {
     for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
-      this->values[j] /= s[i+this->f_row];
+      //this->values[j] /= s[i+this->f_row];
+      this->values[j] /= s[i];
+    }
+  }
+}*/
+
+void tbsla::cpp::MatrixCSR::normalize_rows(double* s) {
+  std::cout << "Normalizing on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
+      if (s[i] != 0) {
+        this->values[j] /= s[i];
+      } else {
+        this->values[j] = 0; // Safeguard
+      }
     }
   }
 }
@@ -1261,4 +1290,19 @@ void tbsla::cpp::MatrixCSR::dense_multiply(const double* B, double* C, int cols_
             }
         }
     }
+}
+
+void tbsla::cpp::MatrixCSR::apply_exponential(int base) {
+  std::cout << "Applying exponential on block pr = " << this->pr << " pc = " << this->pc << std::endl;
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < this->ln_row; i++) {
+    for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
+      double z = this->values[j];
+      if (base <= 0) {
+        if (z != 0)
+          this->values[j] = std::exp(z);
+      } else
+        this->values[j] = std::pow(base, z);
+    }
+  }
 }
