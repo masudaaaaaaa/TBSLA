@@ -130,43 +130,42 @@ int main(int argc, char** argv) {
     // Initialize sparse matrix A
     m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0 /*seed*/, pr, pc, p, p);
 
-    // We start over here
-    double* s = new double[m->get_ln_row()];
-  double* global_sum = new double[m->get_ln_row()];
-  for (int i=0; i < m->get_ln_row(); i++) {
-    s[i] = 0;
-    //global_sum[i] = 0;
-  }
-  
-  //MPI_Barrier(MPI_COMM_WORLD);
-  m->print_dense(std::cout, MPI_COMM_WORLD);
-  //MPI_Barrier(MPI_COMM_WORLD);
-  
-  /* Softmax primary version */
-  auto t_op_start = now();
-  m->apply_exponential(base);
-  
-  //MPI_Barrier(MPI_COMM_WORLD);
-  //m->print_dense(std::cout, MPI_COMM_WORLD);
-  //MPI_Barrier(MPI_COMM_WORLD);
-  
-  //m->tbsla::cpp::MatrixCSR::get_row_sums(s);
-  MPI_Barrier(MPI_COMM_WORLD);
-  m->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum);
-  m->normalize_rows(global_sum);
-  MPI_Barrier(MPI_COMM_WORLD);
-  auto t_op_end = now();
-  std::cout << "Time softmax = " << std::to_string((t_op_end - t_op_start) / 1e9) << std::endl;
-  
-  
-  //MPI_Barrier(MPI_COMM_WORLD);
-  m->print_dense(std::cout, MPI_COMM_WORLD);
-  //MPI_Barrier(MPI_COMM_WORLD);
-  
-  //m->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum);
-  
-  delete[] s;
-  delete[] global_sum;
+        // We start over here
+    //double* s = new double[m->get_ln_row()];
+    //double* global_sum = new double[m->get_ln_row()];
+    // for (int i=0; i < m->get_ln_row(); i++) {
+//     s[i] = 0;
+//     //global_sum[i] = 0;
+// }
+
+// //MPI_Barrier(MPI_COMM_WORLD);
+// m->tbsla::mpi::MatrixCSR::print_dense(std::cout, MPI_COMM_WORLD);
+// //MPI_Barrier(MPI_COMM_WORLD);
+
+// /* Softmax primary version */
+// auto t_op_start = now();
+// m->apply_exponential(base);
+
+// //MPI_Barrier(MPI_COMM_WORLD);
+// //m->print_dense(std::cout, MPI_COMM_WORLD);
+// //MPI_Barrier(MPI_COMM_WORLD);
+
+// //m->tbsla::cpp::MatrixCSR::get_row_sums(s);
+// MPI_Barrier(MPI_COMM_WORLD);
+// m->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum);
+// m->normalize_rows(global_sum);
+// MPI_Barrier(MPI_COMM_WORLD);
+// auto t_op_end = now();
+// std::cout << "Time softmax = " << std::to_string((t_op_end - t_op_start) / 1e9) << std::endl;
+
+// //MPI_Barrier(MPI_COMM_WORLD);
+// m->tbsla::mpi::MatrixCSR::print_dense(std::cout, MPI_COMM_WORLD);
+// //MPI_Barrier(MPI_COMM_WORLD);
+
+// //m->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum);
+
+// delete[] s;
+// delete[] global_sum;
 
     // Initialize dense matrix B (only on root process)
     double* B = nullptr;
