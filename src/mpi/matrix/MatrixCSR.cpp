@@ -127,4 +127,3 @@ void tbsla::mpi::MatrixCSR::mpiio_read_lines(MPI_File &fh, int s, int n, int row
     this->rowptr[s + i + 1] = this->nnz;
   }
 }
-
