@@ -30,6 +30,7 @@ class MatrixCSR : public virtual Matrix {
     void fill_random(int n_row, int n_col, double nnz_ratio, unsigned int seed_mult = 1, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
     void fill_brain(int n_row, int n_col, int* neuron_type, std::vector<std::vector<double> > proba_conn, std::vector<std::unordered_map<int,std::vector<int> > > brain_struct, unsigned int seed_mult, int pr = 0, int pc = 0, int NR = 1, int NC = 1);
     void dense_multiply(const double* B, double* C, int cols_B);
+    void apply_exponential(int base = -1);
 
 	void get_row_sums(double* buffer);
 	void normalize_rows(double* s);
