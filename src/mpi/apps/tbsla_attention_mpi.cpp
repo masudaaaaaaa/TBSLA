@@ -103,6 +103,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    InputParser input(argc, argv);
+
     // Parse input arguments
     std::string matrix_dim_string = input.get_opt("--matrix_dim", "1024");
     std::string nnz_ratio_string = input.get_opt("--NNZ", "0.01");
