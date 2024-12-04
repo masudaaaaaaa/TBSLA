@@ -1,10 +1,11 @@
 #include <tbsla/mpi/MatrixCSR.hpp>
-#include <tbsla/cpp/MatrixCSR.hpp>
+//#include <tbsla/cpp/MatrixCSR.hpp>
 #include <tbsla/cpp/utils/range.hpp>
 #include <tbsla/cpp/utils/array.hpp>
 #include <algorithm>
 #include <vector>
 #include <iostream>
+#include <cmath>
 #include <mpi.h>  
 
 #define TBSLA_MATRIX_CSR_READLINES 2048
@@ -36,7 +37,7 @@ void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_loca
     if (C_reduced) delete[] C_reduced;
 }
 
-void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s) {
+void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base) {
   MPI_Comm row_comm; // New communicator for the row
   int row_rank, row_size;
 
@@ -45,12 +46,22 @@ void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s,
   MPI_Comm_rank(row_comm, &row_rank);
   MPI_Comm_size(row_comm, &row_size);
 
-  // Compute local row sums using your function
-  this->tbsla::cpp::MatrixCSR::get_row_sums(s);
-
-  // Initialize global_s to 0
-  for (int i = 0; i < this->ln_row; ++i) {
-    global_s[i] = 0;
+  // Compute local row sums
+  //this->tbsla::cpp::MatrixCSR::get_row_sums(s);
+  std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
+  for (int i = 0; i < this->ln_row; i++) {
+    double sum = 0, z = 0;
+    if (this->rowptr[i + 1] != this->rowptr[i])
+    for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
+      z = this->values[j];
+      if (z != 0) {
+        if (base <= 0) {
+            sum += std::exp(z);
+        } else
+          sum += std::pow(base, z);
+      }
+    }
+    s[i] = sum;
   }
 
   // Reduce row sums within the row communicator

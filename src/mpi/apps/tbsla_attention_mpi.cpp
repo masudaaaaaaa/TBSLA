@@ -109,10 +109,12 @@ int main(int argc, char** argv) {
     std::string matrix_dim_string = input.get_opt("--matrix_dim", "1024");
     std::string nnz_ratio_string = input.get_opt("--NNZ", "0.01");
     std::string cols_B_string = input.get_opt("--cols_B", "512");
+    std::string base_string = input.get_opt("--base", "-1");
 
     int matrix_dim = std::stoi(matrix_dim_string);
     double nnz_ratio = std::stod(nnz_ratio_string);
     int cols_B = std::stoi(cols_B_string);
+    int base = std::stoi(base_string);
 
     // Process grid position
     int pr = rank / p;
@@ -130,42 +132,47 @@ int main(int argc, char** argv) {
     // Initialize sparse matrix A
     m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0 /*seed*/, pr, pc, p, p);
 
-        // We start over here
-    //double* s = new double[m->get_ln_row()];
-    //double* global_sum = new double[m->get_ln_row()];
-    // for (int i=0; i < m->get_ln_row(); i++) {
-//     s[i] = 0;
-//     //global_sum[i] = 0;
-// }
+    // We start over here
+    
+    double* s = new double[m->get_ln_row()];
+    double* global_sum = new double[m->get_ln_row()];
+    for (int i=0; i < m->get_ln_row(); i++) {
+      s[i] = 0;
+      global_sum[i] = 0;
+    }
+    
+    //MPI_Barrier(MPI_COMM_WORLD);
+    // Attempt to cast m to MatrixCSR
+    auto csr_matrix = dynamic_cast<tbsla::mpi::MatrixCSR*>(m);
+    
+    if (csr_matrix) {
+        // Only call MatrixCSR-specific methods if m is actually a MatrixCSR object
+        csr_matrix->print_dense(std::cout, MPI_COMM_WORLD);
+    
+        // Softmax primary version
+        auto t_op_start = now();
+        //csr_matrix->apply_exponential(base);
+    
+        MPI_Barrier(MPI_COMM_WORLD);
+        csr_matrix->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum, base);
+        MPI_Barrier(MPI_COMM_WORLD);
+        csr_matrix->apply_exponential(global_sum, base);
+        //m->normalize_rows(global_sum);
+        //MPI_Barrier(MPI_COMM_WORLD);
+    
+        auto t_op_end = now();
+        std::cout << "Time softmax = " << std::to_string((t_op_end - t_op_start) / 1e9) << std::endl;
+    
+        // Print the dense matrix after operations
+        csr_matrix->print_dense(std::cout, MPI_COMM_WORLD);
+    } else {
+        std::cerr << "Error: m is not of type MatrixCSR!" << std::endl;
+    }
+    
+    // Clean up
+    delete[] s;
+    delete[] global_sum;
 
-// //MPI_Barrier(MPI_COMM_WORLD);
-// m->tbsla::mpi::MatrixCSR::print_dense(std::cout, MPI_COMM_WORLD);
-// //MPI_Barrier(MPI_COMM_WORLD);
-
-// /* Softmax primary version */
-// auto t_op_start = now();
-// m->apply_exponential(base);
-
-// //MPI_Barrier(MPI_COMM_WORLD);
-// //m->print_dense(std::cout, MPI_COMM_WORLD);
-// //MPI_Barrier(MPI_COMM_WORLD);
-
-// //m->tbsla::cpp::MatrixCSR::get_row_sums(s);
-// MPI_Barrier(MPI_COMM_WORLD);
-// m->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum);
-// m->normalize_rows(global_sum);
-// MPI_Barrier(MPI_COMM_WORLD);
-// auto t_op_end = now();
-// std::cout << "Time softmax = " << std::to_string((t_op_end - t_op_start) / 1e9) << std::endl;
-
-// //MPI_Barrier(MPI_COMM_WORLD);
-// m->tbsla::mpi::MatrixCSR::print_dense(std::cout, MPI_COMM_WORLD);
-// //MPI_Barrier(MPI_COMM_WORLD);
-
-// //m->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum);
-
-// delete[] s;
-// delete[] global_sum;yeah
 
     // Initialize dense matrix B (only on root process)
     double* B = nullptr;
