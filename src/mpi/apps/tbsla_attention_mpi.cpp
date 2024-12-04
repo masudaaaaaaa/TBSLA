@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
 // //m->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum);
 
 // delete[] s;
-// delete[] global_sum;
+// delete[] global_sum;yeah
 
     // Initialize dense matrix B (only on root process)
     double* B = nullptr;
