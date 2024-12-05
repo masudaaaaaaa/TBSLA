@@ -30,18 +30,6 @@ void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_loca
     }
 }
 
-    // Reduce results along rows of processors
-    double* C_reduced = (this->pc == 0) ? new double[this->ln_row * B_cols] : nullptr;
-    MPI_Reduce(C_local, C_reduced, this->ln_row * B_cols, MPI_DOUBLE, MPI_SUM, 0, comm);
-
-    if (this->pc == 0) {
-        // Save or process reduced results as needed
-        // e.g., write to file or output the result
-    }
-
-    if (C_reduced) delete[] C_reduced;
-}
-
 void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B_cols, int pr, int pc, MPI_Comm comm) {
     // Create a communicator for each row of the process grid
     MPI_Comm row_comm;
