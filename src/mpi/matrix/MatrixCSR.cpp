@@ -38,14 +38,6 @@ void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B
     // Perform row-wise all-reduce in-place
     MPI_Allreduce(MPI_IN_PLACE, C_local, ln_row * B_cols, MPI_DOUBLE, MPI_SUM, row_comm);
 
-    // Debugging: Print the reduced result on all processes
-    for (int i = 0; i < ln_row; ++i) {
-        for (int j = 0; j < B_cols; ++j) {
-            std::cout << "Process (" << pr << ", " << pc << ") C_local[" << i << ", " << j
-                      << "] = " << C_local[i * B_cols + j] << std::endl;
-        }
-    }
-
     // Free the row communicator
     MPI_Comm_free(&row_comm);
 }
