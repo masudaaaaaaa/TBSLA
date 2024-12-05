@@ -11,36 +11,49 @@
 #define TBSLA_MATRIX_CSR_READLINES 2048
 
 void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_local, int B_cols, MPI_Comm comm) {
+    std::fill(C_local, C_local + this->ln_row * B_cols, 0.0); // Clear C_local
 
-    // Perform local sparse-dense multiplication
-    for (int i = 0; i < this->ln_row; ++i) { // Iterate over local rows
-        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) { // Non-zero elements in row
-            int global_col = this->colidx[j]; // Global column index for this non-zero element
+    for (int i = 0; i < this->ln_row; ++i) { // Iterate over rows
+        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) { // Non-zero elements
+            int global_col = this->colidx[j]; // Global column index
             if (global_col >= this->f_col && global_col < this->f_col + this->ln_col) {
-                int local_col = global_col - this->f_col; // Convert global to local column index
-                double value = this->values[j]; // Non-zero value
-                for (int k = 0; k < B_cols; ++k) { // Iterate over columns of B
-                    C_local[i * B_cols + k] += value * B_local[local_col * B_cols + k];
+                int local_col = global_col - this->f_col; // Map global to local index
+                for (int k = 0; k < B_cols; ++k) {
+                    C_local[i * B_cols + k] += this->values[j] * B_local[local_col * B_cols + k];
                 }
-            } else {
-                std::cerr << "Rank "  " encountered out-of-range column index: "
-                          <<  std::endl;
             }
         }
     }
 }
 
-void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B_cols, int pr, int pc, MPI_Comm comm) {
-    // Create a communicator for each row of the process grid
-    MPI_Comm row_comm;
-    MPI_Comm_split(comm, pr, pc, &row_comm);
 
-    // Perform row-wise all-reduce in-place
+void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B_cols, int pr, int pc, MPI_Comm comm) {
+    MPI_Comm row_comm;
+    MPI_Comm_split(comm, pr, pc, &row_comm); // Create row communicator
+  
+    std::cout << "Rank (" << pr << ", " << pc << ") before reduction, C_local:" << std::endl;
+for (int i = 0; i < ln_row; ++i) {
+    for (int j = 0; j < B_cols; ++j) {
+        std::cout << C_local[i * B_cols + j] << " ";
+    }
+    std::cout << std::endl;
+}
+
+    // Perform in-place all-reduce operation for summing corresponding elements
     MPI_Allreduce(MPI_IN_PLACE, C_local, ln_row * B_cols, MPI_DOUBLE, MPI_SUM, row_comm);
 
-    // Free the row communicator
+std::cout << "Rank (" << pr << ", " << pc << ") after reduction, C_local:" << std::endl;
+for (int i = 0; i < ln_row; ++i) {
+    for (int j = 0; j < B_cols; ++j) {
+        std::cout << C_local[i * B_cols + j] << " ";
+    }
+    std::cout << std::endl;
+}
+
     MPI_Comm_free(&row_comm);
 }
+
+
 
 void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base) {
   MPI_Comm row_comm; // New communicator for the row

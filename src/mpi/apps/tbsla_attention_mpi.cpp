@@ -209,8 +209,8 @@ int main(int argc, char** argv) {
     double* C_local = new double[ln_row_A * cols_B];
     std::memset(C_local, 0, sizeof(double) * ln_row_A * cols_B);
     
-  //  std::cout << "Print before multiplication" << std::endl;  
-  //  debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
+    std::cout << "Print before multiplication" << std::endl;  
+    debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
     
     // Perform sparse-dense multiplication
     m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
