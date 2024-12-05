@@ -37,6 +37,26 @@ void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_loca
     if (C_reduced) delete[] C_reduced;
 }
 
+void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B_cols, int pr, int pc, MPI_Comm comm) {
+    // Create a communicator for each row of the process grid
+    MPI_Comm row_comm;
+    MPI_Comm_split(comm, pr, pc, &row_comm);
+
+    // Perform row-wise all-reduce in-place
+    MPI_Allreduce(MPI_IN_PLACE, C_local, ln_row * B_cols, MPI_DOUBLE, MPI_SUM, row_comm);
+
+    // Debugging: Print the reduced result on all processes
+    for (int i = 0; i < ln_row; ++i) {
+        for (int j = 0; j < B_cols; ++j) {
+            std::cout << "Process (" << pr << ", " << pc << ") C_local[" << i << ", " << j
+                      << "] = " << C_local[i * B_cols + j] << std::endl;
+        }
+    }
+
+    // Free the row communicator
+    MPI_Comm_free(&row_comm);
+}
+
 void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base) {
   MPI_Comm row_comm; // New communicator for the row
   int row_rank, row_size;
