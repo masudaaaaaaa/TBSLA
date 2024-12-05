@@ -209,18 +209,11 @@ int main(int argc, char** argv) {
     double* C_local = new double[ln_row_A * cols_B];
     std::memset(C_local, 0, sizeof(double) * ln_row_A * cols_B);
     
-    std::cout << "Print before multiplication" << std::endl;
-    
-    debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
-    
+  //  std::cout << "Print before multiplication" << std::endl;  
+  //  debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
     
     // Perform sparse-dense multiplication
     m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
-    
-    double* C_global = nullptr;
-    if (pc == 0) { // Only first column processes will store the reduced result
-      C_global = new double[ln_rows_B * cols_B];
-    }
     
     m->row_sum_reduction(C_local, ln_rows_B, cols_B, pr, pc, MPI_COMM_WORLD);
     
