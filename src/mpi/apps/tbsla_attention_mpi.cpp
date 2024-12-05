@@ -16,17 +16,37 @@ static std::uint64_t now() {
     ).count();
 }
 
-// Distribute dense matrix rows across MPI processes
-void distribute_dense_matrix(const double* B, double* B_local, int rows_B, int cols_B, int ln_rows_B, int p, int rank, MPI_Comm comm) {
-    int pr = rank / p; // Row of the process in the grid
-    int pc = rank % p; // Column of the process in the grid
-
-    // Calculate the block of B that this column of processes will receive
-    const double* B_block = B + (pc * ln_rows_B * cols_B);
-
-    // Scatter the selected block to all processes in the column
-    MPI_Scatter(B_block, ln_rows_B * cols_B, MPI_DOUBLE, B_local, ln_rows_B * cols_B, MPI_DOUBLE, 0, comm);
-}
+  // Distribute dense matrix rows across MPI processes
+  void distribute_dense_matrix(const double* B, double* B_local, int rows_B, int cols_B, int ln_rows_B, int p, int rank, MPI_Comm comm) {
+      // Compute the number of rows in each block
+      int rows_per_block = rows_B / p;
+  
+      // Rank's process grid row and column position
+      int pr = rank / p; // Row in the process grid
+      int pc = rank % p; // Column in the process grid
+  
+      // Buffer for scatterv
+      int* sendcounts = nullptr;
+      int* displs = nullptr;
+  
+      if (rank == 0) {
+          sendcounts = new int[p * p];
+          displs = new int[p * p];
+          for (int i = 0; i < p * p; ++i) {
+              sendcounts[i] = rows_per_block * cols_B;
+              displs[i] = (i % p) * rows_per_block * cols_B;
+          }
+      }
+  
+      // Scatter rows of B along the rows of the process grid
+      MPI_Scatterv(B, sendcounts, displs, MPI_DOUBLE, B_local, ln_rows_B * cols_B, MPI_DOUBLE, 0, comm);
+  
+      if (rank == 0) {
+          delete[] sendcounts;
+          delete[] displs;
+      }
+  }
+  
 
 
 // Compute GFLOPS for sparse-dense multiplication
@@ -43,22 +63,22 @@ void print_dense_matrix(double* M, int nb_row, int nb_col) {
     }
 }
 
-void fill_matrix_by_blocks(double* B, int matrix_dim, int cols_B, int n_blocks) {
-    int rows_per_block = matrix_dim / n_blocks; // Rows in each block
-    int extra_rows = matrix_dim % n_blocks;    // Handle remaining rows
-
-    int current_row = 0; // Track the current row in B
-    for (int block_id = 0; block_id < n_blocks; ++block_id) {
-        int block_rows = rows_per_block + (block_id < extra_rows ? 1 : 0); // Distribute extra rows
-
-        for (int i = 0; i < block_rows; ++i) {
-            for (int j = 0; j < cols_B; ++j) {
-                B[current_row * cols_B + j] = static_cast<double>(block_id);
-            }
-            ++current_row;
-        }
-    }
-}
+  void fill_matrix_by_blocks(double* B, int matrix_dim, int cols_B, int n_blocks) {
+      int rows_per_block = matrix_dim / n_blocks; // Rows in each block
+      int extra_rows = matrix_dim % n_blocks;    // Handle remaining rows
+  
+      int current_row = 0; // Track the current row in B
+      for (int block_id = 0; block_id < n_blocks; ++block_id) {
+          int block_rows = rows_per_block + (block_id < extra_rows ? 1 : 0); // Distribute extra rows
+  
+          for (int i = 0; i < block_rows; ++i) {
+              for (int j = 0; j < cols_B; ++j) {
+                  B[current_row * cols_B + j] = 1.0 + static_cast<double>(block_id);
+              }
+              ++current_row;
+          }
+      }
+  }
 
 void debug_print(int rank, int world, double* B_local, double* C_local, tbsla::mpi::Matrix* m, int ln_row, int cols_B) {
     MPI_Barrier(MPI_COMM_WORLD); // Ensure all processes reach this point
