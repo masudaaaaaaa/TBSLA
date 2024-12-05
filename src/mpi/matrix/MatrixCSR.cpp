@@ -11,19 +11,24 @@
 #define TBSLA_MATRIX_CSR_READLINES 2048
 
 void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_local, int B_cols, MPI_Comm comm) {
-    // Initialize C_local
-    std::fill(C_local, C_local + this->ln_row * B_cols, 0.0);
 
     // Perform local sparse-dense multiplication
-    for (int i = 0; i < this->ln_row; ++i) {
-        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) {
-            int col = this->colidx[j];
-            double value = this->values[j];
-            for (int k = 0; k < B_cols; ++k) {
-                C_local[i * B_cols + k] += value * B_local[col * B_cols + k];
+    for (int i = 0; i < this->ln_row; ++i) { // Iterate over local rows
+        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) { // Non-zero elements in row
+            int global_col = this->colidx[j]; // Global column index for this non-zero element
+            if (global_col >= this->f_col && global_col < this->f_col + this->ln_col) {
+                int local_col = global_col - this->f_col; // Convert global to local column index
+                double value = this->values[j]; // Non-zero value
+                for (int k = 0; k < B_cols; ++k) { // Iterate over columns of B
+                    C_local[i * B_cols + k] += value * B_local[local_col * B_cols + k];
+                }
+            } else {
+                std::cerr << "Rank "  " encountered out-of-range column index: "
+                          <<  std::endl;
             }
         }
     }
+}
 
     // Reduce results along rows of processors
     double* C_reduced = (this->pc == 0) ? new double[this->ln_row * B_cols] : nullptr;
