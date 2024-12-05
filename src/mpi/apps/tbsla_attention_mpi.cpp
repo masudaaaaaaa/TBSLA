@@ -184,21 +184,29 @@ int main(int argc, char** argv) {
     // Local dense matrix block
     double* B_local = new double[ln_rows_B * cols_B];
     distribute_dense_matrix(B, B_local, matrix_dim, cols_B, ln_rows_B, p, rank, MPI_COMM_WORLD);
-
-    std::cout << "Processor " << rank << " received B block corresponding to rows [" 
-          << (rank % p) * ln_rows_B << ", " << ((rank % p) + 1) * ln_rows_B - 1 << "] of B." << std::endl;
-print_dense_matrix(B_local, ln_rows_B, cols_B);
-
-
+    
     // Local result matrix
     double* C_local = new double[ln_row_A * cols_B];
     std::memset(C_local, 0, sizeof(double) * ln_row_A * cols_B);
-
-    // Debug print
+    
+    std::cout << "Print before multiplication" << std::endl;
+    
     debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
-
+    
+    
     // Perform sparse-dense multiplication
     m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
+    
+    double* C_global = nullptr;
+    if (pc == 0) { // Only first column processes will store the reduced result
+      C_global = new double[ln_rows_B * cols_B];
+    }
+    
+    m->row_sum_reduction(C_local, ln_rows_B, cols_B, pr, pc, MPI_COMM_WORLD);
+    
+    // Debug print
+    std::cout << "Print after multiplication" << std::endl;
+    debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
 
     // Finalize
     delete[] B_local;
