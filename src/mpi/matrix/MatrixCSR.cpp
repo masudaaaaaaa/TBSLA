@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <numeric>
 #include <mpi.h>  
 
 #define TBSLA_MATRIX_CSR_READLINES 2048
@@ -49,22 +50,21 @@ void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s,
   MPI_Comm_size(row_comm, &row_size);
 
   // Compute local row sums
-  //this->tbsla::cpp::MatrixCSR::get_row_sums(s);
+
   std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
   for (int i = 0; i < this->ln_row; i++) {
-    double sum = 0, z = 0;
-    if (this->rowptr[i + 1] != this->rowptr[i])
-    for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
-      z = this->values[j];
-      if (z != 0) {
-        if (base <= 0) {
-            sum += std::exp(z);
-        } else
-          sum += std::pow(base, z);
+      if (this->rowptr[i + 1] != this->rowptr[i]) {
+          // Use raw pointer arithmetic for the range
+          double* start = this->values + this->rowptr[i];
+          double* end = this->values + this->rowptr[i + 1];
+          s[i] = std::accumulate(start, end, 0.0, [base](double sum, double z) {
+              return z != 0 ? sum + (base <= 0 ? std::exp(z) : std::pow(base, z)) : sum;
+          });
+      } else {
+          s[i] = 0; // No values in the row
       }
-    }
-    s[i] = sum;
   }
+
 
   // Reduce row sums within the row communicator
   for (int i = 0; i < this->ln_row; ++i) {
@@ -82,6 +82,80 @@ void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s,
   // Free the row communicator
   MPI_Comm_free(&row_comm);
 }
+
+void tbsla::mpi::MatrixCSR::debug_compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base) {
+    MPI_Comm row_comm; // New communicator for the row
+    int row_rank, row_size;
+
+    // Create a communicator based on the row group 'pr'
+    MPI_Comm_split(comm, this->pr, this->pc, &row_comm);
+    MPI_Comm_rank(row_comm, &row_rank);
+    MPI_Comm_size(row_comm, &row_size);
+
+    std::cout << "Debugging compute_and_reduce_row_sum..." << std::endl;
+    std::cout << "MatrixCSR properties: ln_row = " << this->ln_row << ", f_row = " << this->f_row << std::endl;
+    std::cout << "Communicator rank = " << row_rank << ", size = " << row_size << std::endl;
+
+    // Log rowptr and values arrays
+    std::cout << "rowptr: ";
+    for (int i = 0; i <= this->ln_row; ++i) {
+        std::cout << this->rowptr[i] << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "values: ";
+    for (int i = 0; i < this->rowptr[this->ln_row]; ++i) {
+        std::cout << this->values[i] << " ";
+    }
+    std::cout << std::endl;
+
+    // Compute local row sums
+    std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
+    for (int i = 0; i < this->ln_row; i++) {
+        double sum = 0;
+        if (this->rowptr[i + 1] != this->rowptr[i]) {
+            double* start = this->values + this->rowptr[i];
+            double* end = this->values + this->rowptr[i + 1];
+            for (double* it = start; it < end; ++it) {
+                double z = *it;
+                if (z != 0) {
+                    double term = (base <= 0) ? std::exp(z) : std::pow(base, z);
+                    std::cout << "Row " << i << ": Adding term " << term << " for z = " << z << std::endl;
+                    sum += term;
+                }
+            }
+        } else {
+            std::cout << "Row " << i << " is empty." << std::endl;
+        }
+        s[i] = sum;
+        std::cout << "Local row sum[" << i << "] = " << s[i] << std::endl;
+    }
+
+    // Reduce row sums within the row communicator
+    for (int i = 0; i < this->ln_row; ++i) {
+        std::cout << "Before reduction: Local sum[" << i << "] = " << s[i] << std::endl;
+        if (NC > 1) {
+            // Perform a reduction to calculate the global row sum within the row communicator
+            MPI_Allreduce(&s[i], &global_s[i], 1, MPI_DOUBLE, MPI_SUM, row_comm);
+            std::cout << "After reduction: Global sum[" << i << "] = " << global_s[i] << std::endl;
+        } else {
+            // If NC == 1, the local sum is the global sum
+            global_s[i] = s[i];
+            std::cout << "Single communicator: Global sum[" << i << "] = " << global_s[i] << std::endl;
+        }
+    }
+
+    std::cout << "Final global row sums:" << std::endl;
+    for (int i = 0; i < this->ln_row; ++i) {
+        std::cout << "global_s[" << i << "] = " << global_s[i] << std::endl;
+    }
+
+    // Free the row communicator
+    MPI_Comm_free(&row_comm);
+
+    std::cout << "Debugging compute_and_reduce_row_sum completed." << std::endl;
+}
+
 
 
 std::ostream& tbsla::mpi::MatrixCSR::print_dense(std::ostream& os, MPI_Comm comm) {

@@ -16,6 +16,7 @@ class MatrixCSR : public tbsla::cpp::MatrixCSR, public tbsla::mpi::Matrix {
     void fill_cqmat(MPI_Comm comm, int n_row, int n_col, int c, double q, unsigned int seed_mult, int pr, int pc, int NR, int NC);
     void dense_multiply(const double* B_local, double* C_local, int B_cols, MPI_Comm comm);
     void compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base = -1);
+    void debug_compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base = -1);
     void row_sum_reduction(double* C_local, int ln_row, int B_cols, int pr, int pc, MPI_Comm comm);
     std::ostream& print_dense(std::ostream& os, MPI_Comm comm);
     using tbsla::cpp::MatrixCSR::spmv;

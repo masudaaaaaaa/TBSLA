@@ -175,6 +175,7 @@ int main(int argc, char** argv) {
     
         MPI_Barrier(MPI_COMM_WORLD);
         csr_matrix->compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum, base);
+        csr_matrix->debug_compute_and_reduce_row_sum(MPI_COMM_WORLD, s, global_sum, base);
         MPI_Barrier(MPI_COMM_WORLD);
         csr_matrix->apply_exponential(global_sum, base);
         //m->normalize_rows(global_sum);
