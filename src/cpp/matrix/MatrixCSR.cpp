@@ -1144,30 +1144,21 @@ void tbsla::cpp::MatrixCSR::fill_brain(int n_row, int n_col, int* neuron_type, s
 }
 
 
-/*void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
+void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
   std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row+this->ln_row << std::endl;
   #pragma omp parallel for schedule(static)
   //for (int i = this->f_row; i < this->f_row+this->ln_row; i++) {
+  // Initialize s for all rows
+    for (int i = 0; i < this->ln_row; i++) {
+        s[i] = 0.0;  // Initialize only local rows
+    }
   for (int i = 0; i < this->ln_row; i++) {
 	double sum = 0;
     for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
       sum += this->values[j];
     }
 	s[i] = sum;
- //s[i+this->f_row] = sum;
-	//std::cout << "sum[" << i << "] = " << sum << std::endl;
-  }
-}*/
-
-void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
-  std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < this->ln_row; i++) {
-    double sum = 0;
-    for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
-      sum += this->values[j];
-    }
-    s[i] = sum;
+	std::cout << "sum[" << i << "] = " << sum << std::endl;
   }
 }
 
@@ -1178,8 +1169,7 @@ void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
   //for (int i = this->f_row; i < this->f_row+this->ln_row; i++) {
   for (int i = 0; i < this->ln_row; i++) {
     for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
-      //this->values[j] /= s[i+this->f_row];
-      this->values[j] /= s[i];
+      this->values[j] /= s[i+this->f_row];
     }
   }
 }*/
@@ -1294,17 +1284,53 @@ void tbsla::cpp::MatrixCSR::dense_multiply(const double* B, double* C, int cols_
     }
 }
 
-void tbsla::cpp::MatrixCSR::apply_exponential(double* s, int base) {
+void tbsla::cpp::MatrixCSR::get_row_max_abs(double* max_abs) {
+    std::cout << "Computing max absolute values on rows " 
+              << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
+
+    // Initialize max_abs for all rows
+    for (int i = 0; i < this->ln_row; i++) {
+        max_abs[i] = 0.0;
+    }
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < this->ln_row; i++) {
+        double max_val = 0.0;  // Initialize to 0 as we are looking for max of absolute values
+
+        if (this->rowptr[i + 1] != this->rowptr[i]) {
+            // Iterate over the non-zero values in the row
+            for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
+                double z = this->values[j];
+                if (z != 0) {
+                    // Compute the max absolute value of non-zero entries
+                    max_val = std::max(max_val, std::fabs(z));
+                }
+            }
+        } else {
+            std::cout << "Row " << i << " is empty." << std::endl;
+        }
+
+        // Store the result in the max array
+        max_abs[i] = max_val;
+
+        std::cout << "max_abs[" << i << "] = " << max_val << std::endl;
+    }
+}
+
+
+void tbsla::cpp::MatrixCSR::apply_exponential(double* max_abs, int base) {
   std::cout << "Applying exponential on block pr = " << this->pr << " pc = " << this->pc << std::endl;
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < this->ln_row; i++) {
     for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
       double z = this->values[j];
-      if (z != 0 && s[i] != 0)
-      if (base <= 0) {
-          this->values[j] = std::exp(z)/s[i];
-      } else
-        this->values[j] = std::pow(base, z)/s[i];
+      if (z != 0)
+        if (base <= 0) {
+            if (max_abs == nullptr) this->values[j] = std::exp(z);
+            else this->values[j] = std::exp(z - max_abs[i]);
+        } else {
+            if (max_abs == nullptr) this->values[j] = std::pow(base, z);
+            else this->values[j] = std::pow(base, z - max_abs[i]);
+        }
     }
   }
 }

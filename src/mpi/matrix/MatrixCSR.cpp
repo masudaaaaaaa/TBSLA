@@ -1,12 +1,9 @@
 #include <tbsla/mpi/MatrixCSR.hpp>
-//#include <tbsla/cpp/MatrixCSR.hpp>
 #include <tbsla/cpp/utils/range.hpp>
 #include <tbsla/cpp/utils/array.hpp>
 #include <algorithm>
 #include <vector>
 #include <iostream>
-#include <cmath>
-#include <numeric>
 #include <mpi.h>  
 
 #define TBSLA_MATRIX_CSR_READLINES 2048
@@ -33,129 +30,72 @@ void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B
     MPI_Comm_split(comm, pr, pc, &row_comm); // Create row communicator
   
     // Perform in-place all-reduce operation for summing corresponding elements
-    MPI_Allreduce(MPI_IN_PLACE, C_local, ln_row * B_cols, MPI_DOUBLE, MPI_SUM, row_comm);
+    MPI_Allreduce(MPI_IN_PLACE, C_local, ln_row * B_cols, MPI_DOUBLE, MPI_SUM, comm);
 
     MPI_Comm_free(&row_comm);
 }
 
-
-
-void tbsla::mpi::MatrixCSR::compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base) {
-  MPI_Comm row_comm; // New communicator for the row
-  int row_rank, row_size;
-
-  // Create a communicator based on the row group 'pr'
-  MPI_Comm_split(comm, this->pr, this->pc, &row_comm);
-  MPI_Comm_rank(row_comm, &row_rank);
-  MPI_Comm_size(row_comm, &row_size);
-
-  // Compute local row sums
-
-  std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
-  for (int i = 0; i < this->ln_row; i++) {
-      if (this->rowptr[i + 1] != this->rowptr[i]) {
-          // Use raw pointer arithmetic for the range
-          double* start = this->values + this->rowptr[i];
-          double* end = this->values + this->rowptr[i + 1];
-          s[i] = std::accumulate(start, end, 0.0, [base](double sum, double z) {
-              return z != 0 ? sum + (base <= 0 ? std::exp(z) : std::pow(base, z)) : sum;
-          });
-      } else {
-          s[i] = 0; // No values in the row
-      }
-  }
-
-
-  // Reduce row sums within the row communicator
-  for (int i = 0; i < this->ln_row; ++i) {
-    std::cout << "Process (" << pr << ", " << pc << ") computed row sum[" << i << "]: " << s[i] << std::endl;
-    if (NC > 1) {
-      // Perform a reduction to calculate the global row sum within the row communicator
-      MPI_Allreduce(&s[i], &global_s[i], 1, MPI_DOUBLE, MPI_SUM, row_comm);
-    } else {
-      // If NC == 1, the local sum is the global sum
-      global_s[i] = s[i];
-    }
-    std::cout << "Process (" << pr << ", " << pc << ") computed global row sum[" << i << "]: " << global_s[i] << std::endl;
-  }
-
-  // Free the row communicator
-  MPI_Comm_free(&row_comm);
-}
-
-void tbsla::mpi::MatrixCSR::debug_compute_and_reduce_row_sum(MPI_Comm comm, double* s, double* global_s, int base) {
-    MPI_Comm row_comm; // New communicator for the row
-    int row_rank, row_size;
-
-    // Create a communicator based on the row group 'pr'
+void tbsla::mpi::MatrixCSR::reduce_row_max_abs(MPI_Comm comm, double* max_abs) {
+    // Create a row communicator based on the process's row index (pr)
+    MPI_Comm row_comm;
     MPI_Comm_split(comm, this->pr, this->pc, &row_comm);
+
+    int row_rank, row_size;
     MPI_Comm_rank(row_comm, &row_rank);
     MPI_Comm_size(row_comm, &row_size);
 
-    std::cout << "Debugging compute_and_reduce_row_sum..." << std::endl;
-    std::cout << "MatrixCSR properties: ln_row = " << this->ln_row << ", f_row = " << this->f_row << std::endl;
-    std::cout << "Communicator rank = " << row_rank << ", size = " << row_size << std::endl;
+    std::cout << "Reducing max absolute values..." << std::endl;
 
-    // Log rowptr and values arrays
-    std::cout << "rowptr: ";
-    for (int i = 0; i <= this->ln_row; ++i) {
-        std::cout << this->rowptr[i] << " ";
-    }
-    std::cout << std::endl;
+    // Temporary array to store reduced max values
+    double* global_max = new double[this->ln_row];
 
-    std::cout << "values: ";
-    for (int i = 0; i < this->rowptr[this->ln_row]; ++i) {
-        std::cout << this->values[i] << " ";
-    }
-    std::cout << std::endl;
+    // Perform reduction (max) within the row communicator
+    MPI_Allreduce(max_abs, global_max, this->ln_row, MPI_DOUBLE, MPI_MAX, row_comm);
 
-    // Compute local row sums
-    std::cout << "Computing row-sums on rows " << this->f_row << " to " << this->f_row + this->ln_row << std::endl;
-    for (int i = 0; i < this->ln_row; i++) {
-        double sum = 0;
-        if (this->rowptr[i + 1] != this->rowptr[i]) {
-            double* start = this->values + this->rowptr[i];
-            double* end = this->values + this->rowptr[i + 1];
-            for (double* it = start; it < end; ++it) {
-                double z = *it;
-                if (z != 0) {
-                    double term = (base <= 0) ? std::exp(z) : std::pow(base, z);
-                    std::cout << "Row " << i << ": Adding term " << term << " for z = " << z << std::endl;
-                    sum += term;
-                }
-            }
-        } else {
-            std::cout << "Row " << i << " is empty." << std::endl;
-        }
-        s[i] = sum;
-        std::cout << "Local row sum[" << i << "] = " << s[i] << std::endl;
-    }
+    // Copy the reduced values back to max_abs
+    std::copy(global_max, global_max + this->ln_row, max_abs);
 
-    // Reduce row sums within the row communicator
+    // Output the reduced max absolute values
     for (int i = 0; i < this->ln_row; ++i) {
-        std::cout << "Before reduction: Local sum[" << i << "] = " << s[i] << std::endl;
-        if (NC > 1) {
-            // Perform a reduction to calculate the global row sum within the row communicator
-            MPI_Allreduce(&s[i], &global_s[i], 1, MPI_DOUBLE, MPI_SUM, row_comm);
-            std::cout << "After reduction: Global sum[" << i << "] = " << global_s[i] << std::endl;
-        } else {
-            // If NC == 1, the local sum is the global sum
-            global_s[i] = s[i];
-            std::cout << "Single communicator: Global sum[" << i << "] = " << global_s[i] << std::endl;
-        }
+        std::cout << "Row " << i + this->f_row << " -> Global max_abs: " << max_abs[i] << std::endl;
     }
 
-    std::cout << "Final global row sums:" << std::endl;
-    for (int i = 0; i < this->ln_row; ++i) {
-        std::cout << "global_s[" << i << "] = " << global_s[i] << std::endl;
-    }
+    delete[] global_max;
 
     // Free the row communicator
     MPI_Comm_free(&row_comm);
-
-    std::cout << "Debugging compute_and_reduce_row_sum completed." << std::endl;
 }
 
+void tbsla::mpi::MatrixCSR::reduce_row_sums(MPI_Comm comm, double* s) {
+    // Create a row communicator based on the process's row index (pr)
+    MPI_Comm row_comm;
+    MPI_Comm_split(comm, this->pr, this->pc, &row_comm);
+
+    int row_rank, row_size;
+    MPI_Comm_rank(row_comm, &row_rank);
+    MPI_Comm_size(row_comm, &row_size);
+
+    std::cout << "Reducing row sums..." << std::endl;
+
+    // Temporary array to store reduced values
+    double* global_s = new double[this->ln_row];
+
+    // Perform reduction (sum) within the row communicator
+    MPI_Allreduce(s, global_s, this->ln_row, MPI_DOUBLE, MPI_SUM, row_comm);
+
+    // Copy the reduced values back to (s)
+    std::copy(global_s, global_s + this->ln_row, s);
+
+    // Output the reduced row sums
+    for (int i = 0; i < this->ln_row; ++i) {
+        std::cout << "Row " << i + this->f_row << " -> Global sum: " << s[i] << std::endl;
+    }
+
+    delete[] global_s;
+
+    // Free the row communicator
+    MPI_Comm_free(&row_comm);
+}
 
 
 std::ostream& tbsla::mpi::MatrixCSR::print_dense(std::ostream& os, MPI_Comm comm) {
@@ -164,68 +104,42 @@ std::ostream& tbsla::mpi::MatrixCSR::print_dense(std::ostream& os, MPI_Comm comm
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    // Calculate local size
-    int local_size = this->ln_row * this->ln_col;
-
-    // Prepare local data array
-    double* local_d = new double[local_size]();
-    for (int i = 0; i < local_size; i++) {
-        local_d[i] = 0;
-    }
-
+    // Prepare global data array (d) and initialize to zero
+    double* d = new double[this->n_row * this->n_col]();
+    
+    // Populate the global data array for the local process's contribution
     if (this->nnz != 0) {
         for (int i = 0; i < this->ln_row; i++) {
             for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; j++) {
-                int global_col = this->pc * this->ln_col + this->colidx[j];
-                if (global_col >= 0 && global_col < this->n_col) {  // Check for valid column index
-                    local_d[i * this->ln_col + global_col] += this->values[j];
-                }
+                d[(this->f_row + i) * this->n_col + this->colidx[j]] += this->values[j];
             }
         }
     }
 
-    // Allocate memory for recv_counts and displs on all processes
-    int* recv_counts = new int[size];
-    int* displs = new int[size];
-
-    // Gather the local sizes of each process
-    MPI_Gather(&local_size, 1, MPI_INT, recv_counts, 1, MPI_INT, 0, comm);
-
-    // Calculate displacements on rank 0
+    // Rank 0 gathers data from all other ranks
     if (rank == 0) {
-        displs[0] = 0;
-        for (int i = 1; i < size; i++) {
-            displs[i] = displs[i - 1] + recv_counts[i - 1];
+        // Receive and integrate contributions from other ranks
+        for (int p = 1; p < size; p++) {
+            double* recv_d = new double[this->n_row * this->n_col]();
+            MPI_Recv(recv_d, this->n_row * this->n_col, MPI_DOUBLE, p, 0, comm, MPI_STATUS_IGNORE);
+            for (int i = 0; i < this->n_row * this->n_col; i++) {
+                d[i] += recv_d[i];
+            }
+            delete[] recv_d;
         }
+
+        // Print the global matrix
+        tbsla::utils::array::print_dense_matrix(this->n_row, this->n_col, d, os);
+    } else {
+        // Other ranks send their local contributions to rank 0
+        MPI_Send(d, this->n_row * this->n_col, MPI_DOUBLE, 0, 0, comm);
     }
 
-    // Allocate memory for the global array on rank 0
-    double* global_d = nullptr;
-    if (rank == 0) {
-        int global_size = 0;
-        for (int i = 0; i < size; i++) {
-            global_size += recv_counts[i];
-        }
-        global_d = new double[global_size]();
-    }
-
-    // Gather the data from all processes
-    MPI_Gatherv(local_d, local_size, MPI_DOUBLE,
-                global_d, recv_counts, displs, MPI_DOUBLE,
-                0, comm);
-
-    // Print the global matrix on rank 0
-    if (rank == 0) {
-        tbsla::utils::array::print_dense_matrix(this->n_row, this->n_col, global_d, os);
-        delete[] global_d;
-        delete[] recv_counts;
-        delete[] displs;
-    }
-
-    // Clean up local data
-    delete[] local_d;
+    // Clean up
+    delete[] d;
     return os;
 }
+
 
 int tbsla::mpi::MatrixCSR::read_bin_mpiio(MPI_Comm comm, std::string filename, int pr, int pc, int NR, int NC) {
   int world, rank;
