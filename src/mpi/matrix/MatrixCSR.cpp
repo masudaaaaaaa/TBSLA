@@ -31,24 +31,8 @@ void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B
     MPI_Comm row_comm;
     MPI_Comm_split(comm, pr, pc, &row_comm); // Create row communicator
   
-    std::cout << "Rank (" << pr << ", " << pc << ") before reduction, C_local:" << std::endl;
-for (int i = 0; i < ln_row; ++i) {
-    for (int j = 0; j < B_cols; ++j) {
-        std::cout << C_local[i * B_cols + j] << " ";
-    }
-    std::cout << std::endl;
-}
-
     // Perform in-place all-reduce operation for summing corresponding elements
     MPI_Allreduce(MPI_IN_PLACE, C_local, ln_row * B_cols, MPI_DOUBLE, MPI_SUM, row_comm);
-
-std::cout << "Rank (" << pr << ", " << pc << ") after reduction, C_local:" << std::endl;
-for (int i = 0; i < ln_row; ++i) {
-    for (int j = 0; j < B_cols; ++j) {
-        std::cout << C_local[i * B_cols + j] << " ";
-    }
-    std::cout << std::endl;
-}
 
     MPI_Comm_free(&row_comm);
 }
