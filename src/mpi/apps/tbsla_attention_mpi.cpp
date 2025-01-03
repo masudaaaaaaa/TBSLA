@@ -146,20 +146,21 @@ int main(int argc, char** argv) {
             MPI_Barrier(MPI_COMM_WORLD);
             csr_matrix->get_row_max_abs(max_abs);
             csr_matrix->reduce_row_max_abs(MPI_COMM_WORLD, max_abs);
-            MPI_Barrier(MPI_COMM_WORLD);
+            //MPI_Barrier(MPI_COMM_WORLD);
         }
 
         csr_matrix->apply_exponential(max_abs, base);
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        //MPI_Barrier(MPI_COMM_WORLD);
         m->get_row_sums(s);
         csr_matrix->reduce_row_sums(MPI_COMM_WORLD, s);
-        MPI_Barrier(MPI_COMM_WORLD);
+        //MPI_Barrier(MPI_COMM_WORLD);
 
         m->normalize_rows(s);
+        MPI_Barrier(MPI_COMM_WORLD);
 
         t_op_end = now();
-        std::cout << "Time softmax = " << std::to_string((t_op_end - t_op_start) / 1e9) << std::endl;
+        std::cout << "Time softmax: " << std::to_string((t_op_end - t_op_start) / 1e9) << std::endl;
     } else if (!csr_matrix) {
         std::cerr << "Error: m is not of type MatrixCSR!" << std::endl;
     }
