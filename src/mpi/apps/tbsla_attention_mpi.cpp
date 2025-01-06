@@ -45,6 +45,37 @@ void distribute_dense_matrix(const double* B, double* B_local, int rows_B, int c
     }
 }
 
+#include <algorithm>
+#include <vector>
+
+// Compute median time for softmax
+double compute_median_time_softmax(double local_time, MPI_Comm comm) {
+    int world_size, rank;
+    MPI_Comm_size(comm, &world_size);
+    MPI_Comm_rank(comm, &rank);
+
+    // Gather all times at the root process
+    std::vector<double> all_times(world_size);
+    MPI_Gather(&local_time, 1, MPI_DOUBLE, all_times.data(), 1, MPI_DOUBLE, 0, comm);
+
+    double median = 0.0;
+    if (rank == 0) {
+        // Sort the times to compute the median
+        std::sort(all_times.begin(), all_times.end());
+        if (world_size % 2 == 0) {
+            median = (all_times[world_size / 2 - 1] + all_times[world_size / 2]) / 2.0;
+        } else {
+            median = all_times[world_size / 2];
+        }
+    }
+
+    // Broadcast the median to all processes
+    MPI_Bcast(&median, 1, MPI_DOUBLE, 0, comm);
+
+    return median;
+}
+
+
 // Compute GFLOPS for sparse-dense multiplication
 double compute_gflops(double runtime, int nnz, int cols_B) {
     return (2.0 * nnz * cols_B) / (runtime * 1e9);
