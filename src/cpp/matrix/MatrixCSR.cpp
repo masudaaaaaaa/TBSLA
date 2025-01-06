@@ -1158,7 +1158,7 @@ void tbsla::cpp::MatrixCSR::get_row_sums(double* s) {
       sum += this->values[j];
     }
 	s[i] = sum;
-	std::cout << "sum[" << i << "] = " << sum << std::endl;
+	//std::cout << "sum[" << i << "] = " << sum << std::endl;
   }
 }
 
@@ -1310,7 +1310,7 @@ void tbsla::cpp::MatrixCSR::get_row_max_abs(double* max_abs) {
         // Store the result in the max array
         max_abs[i] = max_val;
 
-        std::cout << "max_abs[" << i << "] = " << max_val << std::endl;
+        //std::cout << "max_abs[" << i << "] = " << max_val << std::endl;
     }
 }
 
