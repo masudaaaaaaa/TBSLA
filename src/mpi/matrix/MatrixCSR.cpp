@@ -53,9 +53,9 @@ void tbsla::mpi::MatrixCSR::reduce_row_max_abs(MPI_Comm comm, double* max_abs) {
     std::copy(global_max, global_max + this->ln_row, max_abs);
 
     // Output the reduced max absolute values
-    for (int i = 0; i < this->ln_row; ++i) {
+    /*for (int i = 0; i < this->ln_row; ++i) {
         std::cout << "Row " << i + this->f_row << " -> Global max_abs: " << max_abs[i] << std::endl;
-    }
+    }*/
 
     delete[] global_max;
 
@@ -84,9 +84,9 @@ void tbsla::mpi::MatrixCSR::reduce_row_sums(MPI_Comm comm, double* s) {
     std::copy(global_s, global_s + this->ln_row, s);
 
     // Output the reduced row sums
-    for (int i = 0; i < this->ln_row; ++i) {
+    /*for (int i = 0; i < this->ln_row; ++i) {
         std::cout << "Row " << i + this->f_row << " -> Global sum: " << s[i] << std::endl;
-    }
+    }*/
 
     delete[] global_s;
 
