@@ -247,7 +247,7 @@ int main(int argc, char** argv) {
         json_output += "},";
         json_output += "\"timings\": {";
         json_output += "\"initialization\": " + std::to_string((t_init_end - t_init_start) / 1e9) + ",";
-        json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(median_time) + ",";
+        json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(median_time)) + ",";
         json_output += "\"matrix_distribution\": " + std::to_string((t_distribute_end - t_distribute_start) / 1e9) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string((t_multiply_end - t_multiply_start) / 1e9)) + ",";
         json_output += "\"finalization\": " + std::to_string((t_finalize_end - t_finalize_start) / 1e9);
