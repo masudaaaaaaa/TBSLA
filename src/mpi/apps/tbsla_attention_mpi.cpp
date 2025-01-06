@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
     m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0, pr, pc, p, p);
     auto t_init_end = now();
 
-    double* max_abs = nullptr;
+    double* max_abs = new double[m->get_ln_row()];
     double* s = new double[m->get_ln_row()];
 
     auto csr_matrix = dynamic_cast<tbsla::mpi::MatrixCSR*>(m);
@@ -141,21 +141,16 @@ int main(int argc, char** argv) {
     double t_op_start = 0, t_op_end = 0;
     if (csr_matrix && !skip_softmax) {
         t_op_start = now();
-        if (input.has_opt("--with_max-abs")) {
-            max_abs = new double[m->get_ln_row()];
-            MPI_Barrier(MPI_COMM_WORLD);
-            csr_matrix->get_row_max_abs(max_abs);
-            csr_matrix->reduce_row_max_abs(MPI_COMM_WORLD, max_abs);
-            //MPI_Barrier(MPI_COMM_WORLD);
-        }
-
+        
+        MPI_Barrier(MPI_COMM_WORLD);
+        csr_matrix->get_row_max_abs(max_abs);
+        csr_matrix->reduce_row_max_abs(MPI_COMM_WORLD, max_abs);
+        //MPI_Barrier(MPI_COMM_WORLD);
         csr_matrix->apply_exponential(max_abs, base);
-
         //MPI_Barrier(MPI_COMM_WORLD);
         m->get_row_sums(s);
         csr_matrix->reduce_row_sums(MPI_COMM_WORLD, s);
         //MPI_Barrier(MPI_COMM_WORLD);
-
         m->normalize_rows(s);
         MPI_Barrier(MPI_COMM_WORLD);
 
@@ -166,7 +161,7 @@ int main(int argc, char** argv) {
     }
 
     delete[] s;
-    if (input.has_opt("--with_max-abs")) delete[] max_abs;
+    delete[] max_abs;
 
     double* B = nullptr;
     if (rank == 0) {
