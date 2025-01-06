@@ -45,9 +45,6 @@ void distribute_dense_matrix(const double* B, double* B_local, int rows_B, int c
     }
 }
 
-#include <algorithm>
-#include <vector>
-
 // Compute median time for softmax
 double compute_median_time_softmax(double local_time, MPI_Comm comm) {
     int world_size, rank;
@@ -75,6 +72,11 @@ double compute_median_time_softmax(double local_time, MPI_Comm comm) {
     return median;
 }
 
+// Compute GFLOPS for softmax
+double compute_gflops_softmax(int nnz, double execution_time) {
+    double total_flops = 6.0 * nnz;
+    return total_flops / (execution_time * 1e9);
+}
 
 // Compute GFLOPS for sparse-dense multiplication
 double compute_gflops(double runtime, int nnz, int cols_B) {
@@ -169,7 +171,7 @@ int main(int argc, char** argv) {
 
     auto csr_matrix = dynamic_cast<tbsla::mpi::MatrixCSR*>(m);
 
-    double t_op_start = 0, t_op_end = 0;
+    double t_op_start = 0, t_op_end = 0, local_time = 0.0, median_time = 0.0;
     if (csr_matrix && !skip_softmax) {
         t_op_start = now();
         
@@ -186,7 +188,13 @@ int main(int argc, char** argv) {
         MPI_Barrier(MPI_COMM_WORLD);
 
         t_op_end = now();
-        std::cout << "Time softmax: " << std::to_string((t_op_end - t_op_start) / 1e9) << std::endl;
+
+        local_time = (t_op_end - t_op_start) / 1e9;
+        median_time = compute_median_time_softmax(local_time, MPI_COMM_WORLD);
+        // Compute GFLOPs
+        /*int nnz = csr_matrix->get_nnz();
+        double gflops = compute_gflops_softmax(nnz, local_time);*/
+        std::cout << "Time softmax: " << std::to_string(local_time) << std::endl;
     } else if (!csr_matrix) {
         std::cerr << "Error: m is not of type MatrixCSR!" << std::endl;
     }
@@ -239,7 +247,7 @@ int main(int argc, char** argv) {
         json_output += "},";
         json_output += "\"timings\": {";
         json_output += "\"initialization\": " + std::to_string((t_init_end - t_init_start) / 1e9) + ",";
-        json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string((t_op_end - t_op_start) / 1e9)) + ",";
+        json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(median_time) + ",";
         json_output += "\"matrix_distribution\": " + std::to_string((t_distribute_end - t_distribute_start) / 1e9) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string((t_multiply_end - t_multiply_start) / 1e9)) + ",";
         json_output += "\"finalization\": " + std::to_string((t_finalize_end - t_finalize_start) / 1e9);
