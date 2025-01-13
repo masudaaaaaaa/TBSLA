@@ -79,8 +79,10 @@ double compute_gflops_softmax(int nnz, double execution_time) {
 }
 
 // Compute GFLOPS for sparse-dense multiplication
-double compute_gflops(double runtime, int nnz, int cols_B) {
-    return (2.0 * nnz * cols_B) / (runtime * 1e9);
+double compute_gflops(double runtime, int nnz_per_row, int matrix_dim, int cols_B) {
+    if (runtime == 0) return 0; // Avoid division by zero
+    double total_operations = 2.0 * nnz_per_row * matrix_dim * cols_B;
+    return total_operations / (runtime * 1e9);
 }
 
 void print_dense_matrix(double* M, int nb_row, int nb_col) {
@@ -138,14 +140,14 @@ int main(int argc, char** argv) {
     InputParser input(argc, argv);
 
     std::string matrix_dim_string = input.get_opt("--matrix_dim", "1024");
-    std::string nnz_ratio_string = input.get_opt("--NNZ", "0.01");
+    std::string nnz_per_row_string = input.get_opt("--NNZ", "10"); // NNZ per row
     std::string cols_B_string = input.get_opt("--cols_B", "512");
     std::string base_string = input.get_opt("--base", "-1");
     bool skip_softmax = input.has_opt("--skip_softmax");
     bool skip_multiplication = input.has_opt("--skip_multiplication");
 
     int matrix_dim = std::stoi(matrix_dim_string);
-    double nnz_ratio = std::stod(nnz_ratio_string);
+    int nnz_per_row = std::stoi(nnz_per_row_string); // NNZ per row
     int cols_B = std::stoi(cols_B_string);
     int base = std::stoi(base_string);
 
@@ -163,7 +165,7 @@ int main(int argc, char** argv) {
     m = new tbsla::mpi::MatrixCSR();
 
     auto t_init_start = now();
-    m->fill_random(matrix_dim, matrix_dim, nnz_ratio, 0, pr, pc, p, p);
+    m->fill_random(matrix_dim, matrix_dim, nnz_per_row, 0, pr, pc, p, p); // Use NNZ per row
     auto t_init_end = now();
 
     double* max_abs = new double[m->get_ln_row()];
@@ -236,7 +238,6 @@ int main(int argc, char** argv) {
     auto t_finalize_end = now();
 
     if (rank == 0) {
-        // Manually construct JSON string
         std::string json_output = "{";
         json_output += "\"parameters\": {";
         json_output += "\"matrix_dim\": " + std::to_string(matrix_dim) + ",";
