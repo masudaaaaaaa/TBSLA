@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
         json_output += "\"initial_dense_matrix_distribution\": " + std::to_string((t_distribute_end - t_distribute_start) / 1e9) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(multiplication_time)) + ",";
         json_output += "\"finalization\": " + std::to_string((t_finalize_end - t_finalize_start) / 1e9);
-        json_output += "}";
+        json_output += "},";
         json_output += "\"gflops\": {";
         json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax)) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(gflops_multiplication)) + ",";
