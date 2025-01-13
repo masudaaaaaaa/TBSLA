@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
         json_output += "\"matrix_dim\": " + std::to_string(matrix_dim) + ",";
         json_output += "\"nnz_per_row\": " + std::to_string(nnz_per_row) + ",";
         json_output += "\"cols_B\": " + std::to_string(cols_B) + ",";
-        json_output += "\"base\": " + std::to_string(base) + ",";
+        json_output += "\"base\": " + (base == -1 ? "\"e\"" : std::to_string(base)) + ",";
         json_output += "\"world_size\": " + std::to_string(world);
         json_output += "\"nb_multiplication\": " + std::to_string(nb_multiplication) + "," ;
         json_output += "},";
