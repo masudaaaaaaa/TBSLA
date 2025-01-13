@@ -195,9 +195,6 @@ int main(int argc, char** argv) {
 
         local_time = (t_op_end - t_op_start) / 1e9;
         median_time = compute_median_time_softmax(local_time, MPI_COMM_WORLD);
-        // Compute GFLOPs
-        /*int nnz = csr_matrix->get_nnz();
-        double gflops = compute_gflops_softmax(nnz, local_time);*/
         std::cout << "Time softmax: " << std::to_string(local_time) << std::endl;
     } else if (!csr_matrix) {
         std::cerr << "Error: m is not of type MatrixCSR!" << std::endl;
@@ -250,7 +247,7 @@ int main(int argc, char** argv) {
         // gflops computation 
         double multiplication_time = (t_multiply_end - t_multiply_start) / 1e9;
         double gflops_multiplication = compute_gflops_multiplication(multiplication_time, nnz_per_row, matrix_dim, cols_B, nb_multiplication);
-        double gflops_softmax = 0;
+        double gflops_softmax = compute_gflops_softmax(nnz_per_row, median_time);
     
         std::string json_output = "{";
         json_output += "\"parameters\": {";
