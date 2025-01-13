@@ -248,7 +248,7 @@ int main(int argc, char** argv) {
         // gflops computation 
         double multiplication_time = (t_multiply_end - t_multiply_start) / 1e9;
         double gflops_multiplication = compute_gflops_multiplication(multiplication_time, nnz_per_row, matrix_dim, cols_B, nb_multiplication);
-        double gflops_softmax = compute_gflops_softmax(nnz_per_row, median_time);
+        double gflops_softmax = compute_gflops_softmax(nnz_per_row * matrix_dim, median_time);
     
         std::string json_output = "{";
         json_output += "\"parameters\": {";
