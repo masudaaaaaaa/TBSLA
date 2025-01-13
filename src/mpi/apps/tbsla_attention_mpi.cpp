@@ -79,9 +79,9 @@ double compute_gflops_softmax(int nnz, double execution_time) {
 }
 
 // Compute GFLOPS for sparse-dense multiplication
-double compute_gflops(double runtime, int nnz_per_row, int matrix_dim, int cols_B) {
+double compute_gflops_multiplication(double runtime, int nnz_per_row, int matrix_dim, int cols_B, int nb_multiplication) {
     if (runtime == 0) return 0; // Avoid division by zero
-    double total_operations = 2.0 * nnz_per_row * matrix_dim * cols_B;
+    double total_operations = 2.0 * nnz_per_row * matrix_dim * cols_B * nb_multiplication;
     return total_operations / (runtime * 1e9);
 }
 
@@ -140,16 +140,18 @@ int main(int argc, char** argv) {
     InputParser input(argc, argv);
 
     std::string matrix_dim_string = input.get_opt("--matrix_dim", "1024");
-    std::string nnz_per_row_string = input.get_opt("--NNZ", "10"); // NNZ per row
+    std::string nnz_per_row_string = input.get_opt("--NNZ", "10");
     std::string cols_B_string = input.get_opt("--cols_B", "512");
     std::string base_string = input.get_opt("--base", "-1");
+    std::string nb_multiplication_string = input.get_opt("--nb_multiplication", "1");
     bool skip_softmax = input.has_opt("--skip_softmax");
     bool skip_multiplication = input.has_opt("--skip_multiplication");
 
     int matrix_dim = std::stoi(matrix_dim_string);
-    int nnz_per_row = std::stoi(nnz_per_row_string); // NNZ per row
+    int nnz_per_row = std::stoi(nnz_per_row_string);
     int cols_B = std::stoi(cols_B_string);
     int base = std::stoi(base_string);
+    int nb_multiplication = std::stoi(nb_multiplication_string);
 
     int pr = rank / p;
     int pc = rank % p;
@@ -221,8 +223,14 @@ int main(int argc, char** argv) {
     double t_multiply_start = 0, t_multiply_end = 0;
     if (!skip_multiplication) {
         t_multiply_start = now();
-        m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
-        m->row_sum_reduction(C_local, ln_row_A, cols_B, row_comm);
+        
+        for(int i=0; i<nb_multiplication; i++) {
+        
+          m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
+          m->row_sum_reduction(C_local, ln_row_A, cols_B, row_comm);
+        
+        }
+        
         t_multiply_end = now();
     }
 
@@ -238,23 +246,34 @@ int main(int argc, char** argv) {
     auto t_finalize_end = now();
 
     if (rank == 0) {
+    
+        // gflops computation 
+        double multiplication_time = (t_multiply_end - t_multiply_start) / 1e9;
+        double gflops_multiplication = compute_gflops_multiplication(multiplication_time, nnz_per_row, matrix_dim, cols_B, nb_multiplication);
+        double gflops_softmax = 0;
+    
         std::string json_output = "{";
         json_output += "\"parameters\": {";
         json_output += "\"matrix_dim\": " + std::to_string(matrix_dim) + ",";
-        json_output += "\"nnz_ratio\": " + std::to_string(nnz_ratio) + ",";
+        json_output += "\"nnz_per_row\": " + std::to_string(nnz_per_row) + ",";
         json_output += "\"cols_B\": " + std::to_string(cols_B) + ",";
         json_output += "\"base\": " + std::to_string(base) + ",";
         json_output += "\"world_size\": " + std::to_string(world);
+        json_output += "\"nb_multiplication\": " + std::to_string(nb_multiplication) + "," ;
         json_output += "},";
         json_output += "\"timings\": {";
         json_output += "\"initialization\": " + std::to_string((t_init_end - t_init_start) / 1e9) + ",";
         json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(median_time)) + ",";
-        json_output += "\"matrix_distribution\": " + std::to_string((t_distribute_end - t_distribute_start) / 1e9) + ",";
-        json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string((t_multiply_end - t_multiply_start) / 1e9)) + ",";
+        json_output += "\"initial_dense_matrix_distribution\": " + std::to_string((t_distribute_end - t_distribute_start) / 1e9) + ",";
+        json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(multiplication_time)) + ",";
         json_output += "\"finalization\": " + std::to_string((t_finalize_end - t_finalize_start) / 1e9);
         json_output += "}";
+        json_output += "\"gflops\": {";
+        json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax)) + ",";
+        json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(gflops_multiplication)) + ",";
+        json_output += "\"total\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax + gflops_multiplication)) + ",";
         json_output += "}";
-
+        json_output += "}";
         std::cout << json_output << std::endl;
     }
 
