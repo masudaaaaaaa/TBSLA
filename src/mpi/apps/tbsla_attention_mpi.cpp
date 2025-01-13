@@ -73,9 +73,10 @@ double compute_median_time_softmax(double local_time, MPI_Comm comm) {
 }
 
 // Compute GFLOPS for softmax
-double compute_gflops_softmax(int nnz, double execution_time) {
+double compute_gflops_softmax(int nnz, double runtime) {
+    if (runtime == 0) return 0; // Avoid division by zero
     double total_flops = 6.0 * nnz;
-    return total_flops / (execution_time * 1e9);
+    return total_flops / (runtime * 1e9);
 }
 
 // Compute GFLOPS for sparse-dense multiplication
