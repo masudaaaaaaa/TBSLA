@@ -73,10 +73,9 @@ double compute_median_time_softmax(double local_time, MPI_Comm comm) {
 }
 
 // Compute GFLOPS for softmax
-double compute_gflops_softmax(int nnz, double runtime) {
-    if (runtime == 0) return 0; // Avoid division by zero
+double compute_gflops_softmax(int nnz, double execution_time) {
     double total_flops = 6.0 * nnz;
-    return total_flops / (runtime * 1e9);
+    return total_flops / (execution_time * 1e9);
 }
 
 // Compute GFLOPS for sparse-dense multiplication
@@ -86,6 +85,7 @@ double compute_gflops_multiplication(double runtime, int nnz_per_row, int matrix
     return total_operations / (runtime * 1e9);
 }
 
+// Prints a dense matrix stored in an array of double
 void print_dense_matrix(double* M, int nb_row, int nb_col) {
     for (int i = 0; i < nb_row; i++) {
         for (int j = 0; j < nb_col; j++) {
@@ -95,9 +95,10 @@ void print_dense_matrix(double* M, int nb_row, int nb_col) {
     }
 }
 
-void fill_matrix_by_blocks(double* B, int matrix_dim, int cols_B, int n_blocks) {
-    int rows_per_block = matrix_dim / n_blocks;
-    int extra_rows = matrix_dim % n_blocks;
+// Function useful for debugging: fills a double array with 
+void fill_matrix_by_blocks(double* B, int rows_B, int cols_B, int n_blocks) {
+    int rows_per_block = rows_B / n_blocks;
+    int extra_rows = rows_B % n_blocks;
     int current_row = 0;
 
     for (int block_id = 0; block_id < n_blocks; ++block_id) {
@@ -196,6 +197,9 @@ int main(int argc, char** argv) {
 
         local_time = (t_op_end - t_op_start) / 1e9;
         median_time = compute_median_time_softmax(local_time, MPI_COMM_WORLD);
+        // Compute GFLOPs
+        /*int nnz = csr_matrix->get_nnz();
+        double gflops = compute_gflops_softmax(nnz, local_time);*/
         std::cout << "Time softmax: " << std::to_string(local_time) << std::endl;
     } else if (!csr_matrix) {
         std::cerr << "Error: m is not of type MatrixCSR!" << std::endl;
@@ -232,8 +236,9 @@ int main(int argc, char** argv) {
         t_multiply_end = now();
     }
 
-    debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
-
+    // debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
+    print_dense_matrix(B_local, ln_row_A, cols_B);
+    
     delete[] B_local;
     delete[] C_local;
     MPI_Comm_free(&row_comm);  
@@ -255,9 +260,9 @@ int main(int argc, char** argv) {
         json_output += "\"matrix_dim\": " + std::to_string(matrix_dim) + ",";
         json_output += "\"nnz_per_row\": " + std::to_string(nnz_per_row) + ",";
         json_output += "\"cols_B\": " + std::to_string(cols_B) + ",";
-        json_output += "\"base\": " + (base == -1 ? "\"e\"" : std::to_string(base)) + ",";
-        json_output += "\"nb_multiplication\": " + std::to_string(nb_multiplication) + "," ;
+        json_output += "\"base\": " + std::to_string(base) + ",";
         json_output += "\"world_size\": " + std::to_string(world);
+        json_output += "\"nb_multiplication\": " + std::to_string(nb_multiplication) + "," ;
         json_output += "},";
         json_output += "\"timings\": {";
         json_output += "\"initialization\": " + std::to_string((t_init_end - t_init_start) / 1e9) + ",";
@@ -265,11 +270,11 @@ int main(int argc, char** argv) {
         json_output += "\"initial_dense_matrix_distribution\": " + std::to_string((t_distribute_end - t_distribute_start) / 1e9) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(multiplication_time)) + ",";
         json_output += "\"finalization\": " + std::to_string((t_finalize_end - t_finalize_start) / 1e9);
-        json_output += "},";
+        json_output += "}";
         json_output += "\"gflops\": {";
         json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax)) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(gflops_multiplication)) + ",";
-        json_output += "\"total\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax + gflops_multiplication));
+        json_output += "\"total\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax + gflops_multiplication)) + ",";
         json_output += "}";
         json_output += "}";
         std::cout << json_output << std::endl;
