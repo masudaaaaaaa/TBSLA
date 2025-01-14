@@ -12,11 +12,16 @@ void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_loca
     std::fill(C_local, C_local + this->ln_row * B_cols, 0.0); // Clear C_local
 
     for (int i = 0; i < this->ln_row; ++i) { // Iterate over rows
-        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) { // Non-zero elements
+    
+        for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) { // Iterate over non-zero elements of the CSR matrix
             int global_col = this->colidx[j]; // Global column index
+            
             if (global_col >= this->f_col && global_col < this->f_col + this->ln_col) {
+            
                 int local_col = global_col - this->f_col; // Map global to local index
+                
                 for (int k = 0; k < B_cols; ++k) {
+                    // Perform partial A_local * B_local product and store partial result in C_local
                     C_local[i * B_cols + k] += this->values[j] * B_local[local_col * B_cols + k];
                 }
             }
@@ -25,8 +30,8 @@ void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_loca
 }
 
 
-void tbsla::mpi::MatrixCSR::row_sum_reduction(double* C_local, int ln_row, int B_cols, MPI_Comm row_comm) {
-    // Perform in-place all-reduce operation for summing corresponding elements
+void tbsla::mpi::MatrixCSR::row_sum_reduction_for_dense_multiply(double* C_local, int ln_row, int B_cols, MPI_Comm row_comm) {
+    // Perform in-place all-reduce operation for summing corresponding elements of C_local over each row of the process grid
     MPI_Allreduce(MPI_IN_PLACE, C_local, ln_row * B_cols, MPI_DOUBLE, MPI_SUM, row_comm);
 }
 

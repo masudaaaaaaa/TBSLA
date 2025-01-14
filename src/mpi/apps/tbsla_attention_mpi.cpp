@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
         for(int i=0; i<nb_multiplication; i++) {
         
           m->dense_multiply(B_local, C_local, cols_B, MPI_COMM_WORLD);
-          m->row_sum_reduction(C_local, ln_row_A, cols_B, row_comm);
+          m->row_sum_reduction_for_dense_multiply(C_local, ln_row_A, cols_B, row_comm);
         
         }
         
