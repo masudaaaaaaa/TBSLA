@@ -395,10 +395,10 @@ void tbsla::cpp::MatrixCOO::normalize_cols(double* s) {
 
 }
 
-void get_row_max_abs(double* max_abs) {
+void tbsla::cpp::MatrixCOO::get_row_max_abs(double* max_abs) {
 }
 
-void apply_exponential(double* max_abs, int base) {
+void tbsla::cpp::MatrixCOO::apply_exponential(double* max_abs, int base) {
 }
 
 void tbsla::cpp::MatrixCOO::NUMAinit() {

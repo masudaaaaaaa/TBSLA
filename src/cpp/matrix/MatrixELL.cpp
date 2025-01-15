@@ -832,6 +832,12 @@ void tbsla::cpp::MatrixELL::normalize_cols(double* s) {
   }
 }
 
+void tbsla::cpp::MatrixELL::get_row_max_abs(double* max_abs) {
+}
+
+void tbsla::cpp::MatrixELL::apply_exponential(double* max_abs, int base) {
+}
+
 void tbsla::cpp::MatrixELL::NUMAinit() {
   if(this->nnz==0) {
     std::cout << "Nothing to do ; block matrix is empty" << std::endl;

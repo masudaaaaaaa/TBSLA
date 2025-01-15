@@ -317,6 +317,12 @@ void tbsla::cpp::MatrixDENSE::normalize_cols(double* s) {
 
 }
 
+void tbsla::cpp::MatrixDENSE::get_row_max_abs(double* max_abs) {
+}
+
+void tbsla::cpp::MatrixDENSE::apply_exponential(double* max_abs, int base) {
+}
+
 void tbsla::cpp::MatrixDENSE::NUMAinit() {
   double* newVal = new double[this->ln_row * this->ln_col];
 
