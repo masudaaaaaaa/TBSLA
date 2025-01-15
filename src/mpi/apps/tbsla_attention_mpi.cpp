@@ -178,17 +178,17 @@ int main(int argc, char** argv) {
     auto csr_matrix = dynamic_cast<tbsla::mpi::MatrixCSR*>(m);
 
     double t_op_start = 0, t_op_end = 0, local_time = 0.0, median_time = 0.0;
-    if (csr_matrix && !skip_softmax) {
+    if (!skip_softmax) {
         t_op_start = now();
         
         MPI_Barrier(MPI_COMM_WORLD);
-        csr_matrix->get_row_max_abs(max_abs);
-        csr_matrix->reduce_row_max_abs(MPI_COMM_WORLD, max_abs);
+        m->get_row_max_abs(max_abs);
+        m->reduce_row_max_abs(MPI_COMM_WORLD, max_abs);
         //MPI_Barrier(MPI_COMM_WORLD);
-        csr_matrix->apply_exponential(max_abs, base);
+        m->apply_exponential(max_abs, base);
         //MPI_Barrier(MPI_COMM_WORLD);
         m->get_row_sums(s);
-        csr_matrix->reduce_row_sums(MPI_COMM_WORLD, s);
+        m->reduce_row_sums(MPI_COMM_WORLD, s);
         //MPI_Barrier(MPI_COMM_WORLD);
         m->normalize_rows(s);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -197,12 +197,7 @@ int main(int argc, char** argv) {
 
         local_time = (t_op_end - t_op_start) / 1e9;
         median_time = compute_median_time_softmax(local_time, MPI_COMM_WORLD);
-        // Compute GFLOPs
-        /*int nnz = csr_matrix->get_nnz();
-        double gflops = compute_gflops_softmax(nnz, local_time);*/
         std::cout << "Time softmax: " << std::to_string(local_time) << std::endl;
-    } else if (!csr_matrix) {
-        std::cerr << "Error: m is not of type MatrixCSR!" << std::endl;
     }
 
     delete[] s;
