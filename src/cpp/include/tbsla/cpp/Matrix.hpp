@@ -47,8 +47,8 @@ class Matrix {
 	virtual void normalize_rows(double* s) = 0;
 	virtual void get_col_sums(double* buffer) = 0;
 	virtual void normalize_cols(double* s) = 0;
-        virtual virtual void get_row_max_abs(double* max_abs) = 0;
-        virtual apply_exponential(double* max_abs, int base) = 0;
+        virtual void get_row_max_abs(double* max_abs) = 0;
+        virtual void apply_exponential(double* max_abs, int base) = 0;
 
   protected:
     int n_row, n_col, f_row, f_col, ln_row, ln_col, pr, pc, NR, NC;
