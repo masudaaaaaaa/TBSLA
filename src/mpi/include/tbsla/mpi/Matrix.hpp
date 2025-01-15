@@ -53,6 +53,8 @@ class Matrix : public virtual tbsla::cpp::Matrix {
 	using tbsla::cpp::Matrix::normalize_rows;
 	using tbsla::cpp::Matrix::get_col_sums;
 	using tbsla::cpp::Matrix::normalize_cols;
+        using tbsla::cpp::Matrix::get_row_max_abs;
+        using tbsla::cpp::Matrix::apply_exponential;
     using tbsla::cpp::Matrix::read;
     using tbsla::cpp::Matrix::write;
 
