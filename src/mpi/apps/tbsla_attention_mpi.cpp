@@ -175,8 +175,6 @@ int main(int argc, char** argv) {
     double* max_abs = new double[m->get_ln_row()];
     double* s = new double[m->get_ln_row()];
 
-    auto csr_matrix = dynamic_cast<tbsla::mpi::MatrixCSR*>(m);
-
     double t_op_start = 0, t_op_end = 0, local_time = 0.0, median_time = 0.0;
     if (!skip_softmax) {
         t_op_start = now();
