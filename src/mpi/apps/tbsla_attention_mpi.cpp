@@ -256,8 +256,8 @@ int main(int argc, char** argv) {
         json_output += "\"nnz_per_row\": " + std::to_string(nnz_per_row) + ",";
         json_output += "\"cols_B\": " + std::to_string(cols_B) + ",";
         json_output += "\"base\": " + std::to_string(base) + ",";
-        json_output += "\"world_size\": " + std::to_string(world);
-        json_output += "\"nb_multiplication\": " + std::to_string(nb_multiplication) + "," ;
+        json_output += "\"world_size\": " + std::to_string(world) + ",";
+        json_output += "\"nb_multiplication\": " + std::to_string(nb_multiplication) ;
         json_output += "},";
         json_output += "\"timings\": {";
         json_output += "\"initialization\": " + std::to_string((t_init_end - t_init_start) / 1e9) + ",";
@@ -265,11 +265,11 @@ int main(int argc, char** argv) {
         json_output += "\"initial_dense_matrix_distribution\": " + std::to_string((t_distribute_end - t_distribute_start) / 1e9) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(multiplication_time)) + ",";
         json_output += "\"finalization\": " + std::to_string((t_finalize_end - t_finalize_start) / 1e9);
-        json_output += "}";
+        json_output += "},";
         json_output += "\"gflops\": {";
         json_output += "\"softmax_operations\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax)) + ",";
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(gflops_multiplication)) + ",";
-        json_output += "\"total\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax + gflops_multiplication)) + ",";
+        json_output += "\"total\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax + gflops_multiplication));
         json_output += "}";
         json_output += "}";
         std::cout << json_output << std::endl;
