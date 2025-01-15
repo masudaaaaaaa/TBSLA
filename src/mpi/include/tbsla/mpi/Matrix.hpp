@@ -35,10 +35,14 @@ class Matrix : public virtual tbsla::cpp::Matrix {
     throw std::runtime_error("dense_multiply not implemented for this matrix type");
     }
     virtual void row_sum_reduction_for_dense_multiply(double* C_local, int ln_row, int B_cols, MPI_Comm row_comm){
-    throw std::runtime_error("row_sum_reduction not implemented for this matrix type");
+    throw std::runtime_error("row_sum_reduction_for_dense_multiply not implemented for this matrix type");
     }
-    virtual void reduce_row_sums(MPI_Comm comm, double* s);
-    virtual void reduce_row_max_abs(MPI_Comm comm, double* max_abs);
+    virtual void reduce_row_sums(MPI_Comm comm, double* s) {
+    throw std::runtime_error("reduce_row_sums not implemented for this matrix type");
+    }
+    virtual void reduce_row_max_abs(MPI_Comm comm, double* max_abs) {
+    throw std::runtime_error("reduce_row_max_abs not implemented for this matrix type");
+    }
     int const get_gnnz() {return gnnz;};
     long int const compute_sum_nnz(MPI_Comm comm);
     long int const compute_min_nnz(MPI_Comm comm);
@@ -53,8 +57,6 @@ class Matrix : public virtual tbsla::cpp::Matrix {
 	using tbsla::cpp::Matrix::normalize_rows;
 	using tbsla::cpp::Matrix::get_col_sums;
 	using tbsla::cpp::Matrix::normalize_cols;
-        using tbsla::cpp::Matrix::get_row_max_abs;
-        using tbsla::cpp::Matrix::apply_exponential;
     using tbsla::cpp::Matrix::read;
     using tbsla::cpp::Matrix::write;
 
