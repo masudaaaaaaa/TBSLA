@@ -269,7 +269,7 @@ int main(int argc, char** argv) {
         json_output += "\"multiplication\": " + (skip_multiplication ? "0" : std::to_string(gflops_multiplication)) + ",";
         json_output += "\"total\": " + (skip_softmax ? "0" : std::to_string(gflops_softmax + gflops_multiplication));
         json_output += "}";
-        json_output += "}";
+        json_output += "},";
         std::cout << json_output << std::endl;
     }
 
