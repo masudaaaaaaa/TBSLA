@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
     }
 
     // debug_print(rank, world, B_local, C_local, m, ln_row_A, cols_B);
-    print_dense_matrix(B_local, ln_row_A, cols_B);
+    // print_dense_matrix(B_local, ln_row_A, cols_B);
     
     delete[] B_local;
     delete[] C_local;

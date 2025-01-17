@@ -10,7 +10,7 @@
 
 void tbsla::mpi::MatrixCSR::dense_multiply(const double* B_local, double* C_local, int B_cols, MPI_Comm comm) {
     std::fill(C_local, C_local + this->ln_row * B_cols, 0.0); // Clear C_local
-
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < this->ln_row; ++i) { // Iterate over rows
     
         for (int j = this->rowptr[i]; j < this->rowptr[i + 1]; ++j) { // Iterate over non-zero elements of the CSR matrix
